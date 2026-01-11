@@ -1,0 +1,116 @@
+import UserModel from "../Model/UserModel.js";
+import bcrypt from "bcryptjs";
+import nodemailer from "nodemailer";
+import { v4 as uuidv4 } from "uuid";
+
+/* ================= SIGNUP ================= */
+export const Signup = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    const existingUser = await UserModel.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" });
+    }
+
+    const activationCode = uuidv4();
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = new UserModel({
+      name,
+      email,
+      password: hashedPassword,
+      activationCode,
+      isActivated: false,
+    });
+
+    await user.save();
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail", // recommended
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    const activationLink = `http://localhost:8001/auth/activate/${activationCode}`;
+
+   
+
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Account Activation",
+      html: `
+        <h3>Welcome ${name}</h3>
+        <p>Click the link below to activate your account:</p>
+        <a href="${activationLink}">${activationLink}</a>
+      `,
+    });
+
+  
+
+    res.status(201).json({
+      message: "Signup successful! Please check your email to activate your account.",
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Signup failed", error: error.message });
+  }
+};
+
+/* ================= ACTIVATE ACCOUNT ================= */
+export const activate = async (req, res) => {
+  try {
+    const { activationCode } = req.params;
+
+    console.log("Activation code received:", activationCode);
+
+    const user = await UserModel.findOne({ activationCode });
+    console.log("User found:", user);
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid activation code" });
+    }
+
+    user.isActivated = true;
+    user.activationCode = undefined;
+    await user.save();
+
+    res.status(200).json({ message: "Account activated successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Activation failed" });
+  }
+};
+/* ================= SIGN IN ================= */
+export const signIn = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await UserModel.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: "User does not exist" });
+    }
+
+    if (!user.isActivated) {
+      return res.status(403).json({
+        message: "Please activate your account before logging in",
+      });
+    }
+
+    const isMatching = await bcrypt.compare(password, user.password);
+    if (!isMatching) {
+      return res.status(400).json({ message: "Incorrect password" });
+    }
+
+    res.status(200).json({
+      message: "Login successful",
+      user
+    });
+    
+  } catch (error) {
+    res.status(500).json({ message: "Login failed", error: error.message });
+  }
+};
