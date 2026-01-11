@@ -2,6 +2,7 @@ import UserModel from "../Model/UserModel.js";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 import { v4 as uuidv4 } from "uuid";
+import jwt from "jsonwebtoken";
 
 /* ================= SIGNUP ================= */
 export const Signup = async (req, res) => {
@@ -105,12 +106,30 @@ export const signIn = async (req, res) => {
       return res.status(400).json({ message: "Incorrect password" });
     }
 
+    // ✅ ADDED: JWT TOKEN (NO LOGIC CHANGE)
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    // ✅ ADDED: ROLE → NAVIGATION MAP
+    const roleRedirectMap = {
+      admin: "/admin/dashboard",
+      doctor: "/doctor/dashboard",
+      nurse: "/nurse/dashboard",
+      user: "/user/dashboard",
+    };
+
     res.status(200).json({
       message: "Login successful",
-      user
+      token,                 // ✅ added
+      redirectTo: roleRedirectMap[user.role], // ✅ added
+      user                   // ❌ unchanged (you already had this)
     });
-    
+
   } catch (error) {
     res.status(500).json({ message: "Login failed", error: error.message });
   }
 };
+
