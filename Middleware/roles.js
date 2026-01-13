@@ -8,6 +8,10 @@ const authorizeRoles = (...allowedRoles) => {
   return async (req, res, next) => {
     try {
       // req.userId must come from verifyToken middleware
+          if (!req.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
       const user = await UserModel.findById(req.userId);
 
       if (!user) {
@@ -21,7 +25,7 @@ const authorizeRoles = (...allowedRoles) => {
           yourRole: user.role
         });
       }
-
+req.role = user.role;
       next();
     } catch (error) {
       return res.status(500).json({

@@ -107,11 +107,14 @@ export const signIn = async (req, res) => {
     }
 
     // ✅ ADDED: JWT TOKEN (NO LOGIC CHANGE)
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" }
-    );
+ const token = jwt.sign(
+  {
+    userId: user._id,   // ✅ FIX
+    role: user.role
+  },
+  process.env.JWT_SECRET,
+  { expiresIn: "1d" }
+);
 
     // ✅ ADDED: ROLE → NAVIGATION MAP
     const roleRedirectMap = {
