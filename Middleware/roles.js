@@ -41,5 +41,6 @@ export const isAdmin  = authorizeRoles("admin");
 export const isDoctor = authorizeRoles("doctor");
 export const isNurse  = authorizeRoles("nurse");
 export const isUser   = authorizeRoles("user");
+export const isPharmacist = authorizeRoles("pharmacist");
 
 export default authorizeRoles;

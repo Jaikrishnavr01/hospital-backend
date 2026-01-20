@@ -4,6 +4,7 @@ import { generateSlots } from "../utils/slotGenerator.js";
 import Prescription from "../Model/Prescription.js";
 import Patient from "../Model/Patient.js";
 import UserModel from "../Model/UserModel.js";
+import Medicine from "../Model/Medicine.js";
 
 export const getDoctorSlots = async (req, res) => {
   try {
@@ -133,49 +134,70 @@ export const startConsultation = async (req, res, next) => {
 };
 
 
-export const savePrescription = async (req, res) => {
+export const savePrescription = async (req, res, next) => {
   try {
-    const visit = req.visit;
-    const doctorId = req.userId;
-
-    if (visit.status !== "CONSULTED") {
-      return res.status(403).json({
-        message: "Prescription allowed only after consultation"
-      });
-    }
-
-    const existing = await Prescription.findOne({ visit: visit._id });
-    if (existing) {
-      return res.status(400).json({
-        message: "Prescription already exists"
-      });
-    }
-
     const { diagnosis, medicines, advice, followUpDate } = req.body;
 
-    const patient = await Patient.findById(visit.patient);
-    if (!patient) {
-      return res.status(404).json({ message: "Patient not found" });
+    const visitId = req.params.visitId; // <-- automatically picked from URL
+
+    const checkedMedicines = [];
+
+    for (const med of medicines) {
+      const storeMed = await Medicine.findOne({ name: med.name });
+
+      if (!storeMed || storeMed.stock < med.qty) {
+        checkedMedicines.push({
+          name: med.name,
+          dosage: med.dosage,
+          qty: med.qty,
+          duration: med.duration,
+          instructions: med.instructions,
+          available: false,
+          note: "NO STOCK"
+        });
+      } else {
+        checkedMedicines.push({
+          name: med.name,
+          dosage: med.dosage,
+          qty: med.qty,
+          duration: med.duration,
+          instructions: med.instructions,
+          available: true,
+          note: "AVAILABLE"
+        });
+      }
     }
 
-    await Prescription.create({
-      visit: visit._id,
-      doctor: doctorId,
-      patient: patient._id,
-      diagnosis,
-      medicines,
-      advice,
-      followUpDate
+    let prescription = await Prescription.findOne({
+      visit: visitId
     });
 
-    // ✅ FINAL STATUS
-    visit.status = "COMPLETED";
-    await visit.save();
+    if (prescription) {
+      prescription.diagnosis = diagnosis;
+      prescription.medicines = checkedMedicines;
+      prescription.advice = advice;
+      prescription.followUpDate = followUpDate;
+      prescription.sendToPharmacy = true;
+      prescription.dispensed = false;
 
-    res.status(201).json({
-      message: "Consultation completed & E-Prescription saved",
-      visitStatus: visit.status
-    });
+      await prescription.save();
+    } else {
+      prescription = await Prescription.create({
+        visit: visitId,
+        doctor: req.userId,
+        patient: req.visit.patient,
+        diagnosis,
+        medicines: checkedMedicines,
+        advice,
+        followUpDate,
+        sendToPharmacy: true,
+        dispensed: false
+      });
+    }
+
+    req.prescription = prescription;
+    next();
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -183,4 +205,16 @@ export const savePrescription = async (req, res) => {
 
 
 
+export const sendPrescriptionToPharmacy = async (req, res) => {
+  try {
+
+    res.json({
+      message: "Prescription sent to pharmacy successfully",
+       prescription: req.prescription
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 

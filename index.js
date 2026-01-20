@@ -8,6 +8,7 @@ import Dashboard from "./Router/Dashboard.js";
 import appointmentRoutes from "./Router/appointmentRoutes.js";
 import opRouters from "./Router/opRoutes.js"
 import patientRoutes from "./Router/patientRoutes.js"
+import pharmacy from "./Router/pharmacy.js"
 import doctorRoutes from "./Router/doctorRoutes.js";
 import "./cron/expireAppointment.js";
 
@@ -23,6 +24,7 @@ app.use("/", Dashboard)
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/patients", patientRoutes);
 app.use("/api/doctors", doctorRoutes);
+app.use("/api/p", pharmacy)
 app.use("/api/op",opRouters )
 
 app.get("/", (req, res) => {

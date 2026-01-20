@@ -1,5 +1,5 @@
 import express from "express";
-import { addDoctorAvailability, getDoctorSlots, savePrescription, startConsultation } from "../Controllers/doctorController.js";
+import { addDoctorAvailability, getDoctorSlots, savePrescription, sendPrescriptionToPharmacy, startConsultation } from "../Controllers/doctorController.js";
 import verifyToken from "../Middleware/verifyToken.js";
 import authorizeRoles  from "../Middleware/roles.js";
 import allowOnlyPaidVisit from "../Middleware/allowOnlyPaidView.js";
@@ -18,14 +18,15 @@ router.post(
 );
 
 router.post(
-  "/consult",
+  "/consult/:visitId",
   verifyToken,
   authorizeRoles("doctor"),
   allowOnlyPaidVisit,
   startConsultation,
-  savePrescription
-
+  savePrescription,
+  sendPrescriptionToPharmacy
 );
+
 
 router.get(
   "/prescription/visit/:visitId",

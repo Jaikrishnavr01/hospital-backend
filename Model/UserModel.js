@@ -4,7 +4,7 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { type: String, enum: ["admin", "doctor", "nurse", "user"], default: "user" },
+  role: { type: String, enum: ["admin", "doctor", "nurse", "user", "pharmacist"], default: "user" },
   activationCode: { type: String },
   isActivated: { type: Boolean, default: false }
 });
