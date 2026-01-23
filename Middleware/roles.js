@@ -2,7 +2,7 @@ import UserModel from "../Model/UserModel.js";
 
 /**
  * Generic role authorization middleware
- * Usage: authorizeRoles("admin", "doctor")
+ * Usage: authorizeRoles("admin", "doctor, nurse, user(patient), pharmacist")
  */
 const authorizeRoles = (...allowedRoles) => {
   return async (req, res, next) => {
@@ -37,10 +37,10 @@ req.role = user.role;
 };
 
 /* ===== Role-specific middlewares ===== */
-export const isAdmin  = authorizeRoles("admin");
-export const isDoctor = authorizeRoles("doctor");
-export const isNurse  = authorizeRoles("nurse");
-export const isUser   = authorizeRoles("user");
-export const isPharmacist = authorizeRoles("pharmacist");
+// export const isAdmin  = authorizeRoles("admin");
+// export const isDoctor = authorizeRoles("doctor");
+// export const isNurse  = authorizeRoles("nurse");
+// export const isUser   = authorizeRoles("user");
+// export const isPharmacist = authorizeRoles("pharmacist");
 
 export default authorizeRoles;

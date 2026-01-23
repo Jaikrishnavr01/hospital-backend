@@ -77,6 +77,7 @@ export const activate = async (req, res) => {
     if (!user) {
       return res.status(400).json({ message: "Invalid activation code" });
     }
+    
 
     user.isActivated = true;
     user.activationCode = undefined;
@@ -103,6 +104,12 @@ export const signIn = async (req, res) => {
         message: "Please activate your account before logging in",
       });
     }
+
+    if (user.isBlocked) {
+  return res.status(403).json({
+    message: "Your account has been blocked. Contact admin.",
+  });
+}
 
     const isMatching = await bcrypt.compare(password, user.password);
     if (!isMatching) {
@@ -139,3 +146,90 @@ export const signIn = async (req, res) => {
   }
 };
 
+// block / unblock users
+export const blockUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await UserModel.findByIdAndUpdate(
+      id,
+      { isBlocked: true },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({
+      message: "User blocked successfully",
+      user,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const unblockUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await UserModel.findByIdAndUpdate(
+      id,
+      { isBlocked: false },
+      { new: true }
+    );
+
+    res.status(200).json({
+      message: "User unblocked successfully",
+      user,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const updateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const updatedUser = await UserModel.findByIdAndUpdate(
+      id,
+      req.body,                 // data to update
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json(updatedUser);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getAllUsers = async (req, res) => {
+  try {
+    const users = await UserModel.find(); // 👈 gets all users
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await UserModel.findByIdAndDelete(id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({ message: "User deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

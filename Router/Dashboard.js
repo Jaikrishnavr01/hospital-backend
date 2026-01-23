@@ -1,11 +1,10 @@
 import express from "express";
 import verifyToken from "../Middleware/verifyToken.js";
-import { isAdmin } from "../Middleware/roles.js";
 import authorizeRoles from "../Middleware/roles.js";
 
 const Dashboard = express.Router();
 
-Dashboard.get("/admin/dashboard", verifyToken, isAdmin, (req, res) => {
+Dashboard.get("/admin/dashboard", verifyToken, authorizeRoles("admin"), (req, res) => {
   res.json({ message: "Admin Dashboard Data" });
 });
 

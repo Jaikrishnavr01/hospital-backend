@@ -11,11 +11,13 @@ import patientRoutes from "./Router/patientRoutes.js"
 import pharmacy from "./Router/pharmacy.js"
 import doctorRoutes from "./Router/doctorRoutes.js";
 import "./cron/expireAppointment.js";
+import cors from "cors"
 
 dotenv.config();
 connectDB();
 
 const app = express();
+app.use(cors())
 app.use(express.json());
 
 app.use("/auth", userRoutes);
