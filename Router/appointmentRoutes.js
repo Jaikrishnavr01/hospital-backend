@@ -20,8 +20,8 @@ router.put("/confirm/:id", verifyToken, authorizeRoles("nurse", "doctor", "admin
 // Cancel appointment
 router.put("/cancel/:id", verifyToken, authorizeRoles("user", "nurse", "admin"), cancelAppointment);
 
-// View all (nurse + admin)
-router.get("/all", verifyToken, authorizeRoles("nurse", "admin"), getAllAppointments);
+// View all (nurse + admin + user)
+router.get("/all", verifyToken, authorizeRoles("nurse","user", "admin" , "doctor"), getAllAppointments);
 
 // View own (user)
 router.get("/my", verifyToken, authorizeRoles("user"), getMyAppointments);

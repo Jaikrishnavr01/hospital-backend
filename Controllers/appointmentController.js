@@ -1,21 +1,57 @@
 import Appointment from "../Model/Appointment.js";
 import UserModel from "../Model/UserModel.js";
+import DoctorAvailability from "../Model/DoctorAvailability.js";
 
 /* ================= BOOK APPOINTMENT ================= */
+// Utility to generate slots from start, end, and duration
+const generateSlots = (startTime, endTime, slotDuration) => {
+  const slots = [];
+  let [startHour, startMin] = startTime.split(":").map(Number);
+  let [endHour, endMin] = endTime.split(":").map(Number);
+
+  let current = new Date();
+  current.setHours(startHour, startMin, 0, 0);
+
+  const end = new Date();
+  end.setHours(endHour, endMin, 0, 0);
+
+  while (current < end) {
+    const hh = String(current.getHours()).padStart(2, "0");
+    const mm = String(current.getMinutes()).padStart(2, "0");
+    slots.push(`${hh}:${mm}`);
+    current.setMinutes(current.getMinutes() + slotDuration);
+  }
+
+  return slots;
+};
+
 export const bookAppointment = async (req, res) => {
   try {
     const { doctorId, date, timeSlot } = req.body;
 
-     // 🔒 Validate doctor exists & role is doctor
-    const doctor = await UserModel.findOne({
-      _id: doctorId,
-      role: "doctor"
-    });
-
+    // Validate doctor
+    const doctor = await UserModel.findOne({ _id: doctorId, role: "doctor" });
     if (!doctor) {
-      return res.status(400).json({
-        message: "Invalid doctorId"
-      });
+      return res.status(400).json({ message: "Invalid doctorId" });
+    }
+
+    // Check doctor's availability for that day
+    const day = new Date(date).toLocaleDateString("en-US", { weekday: "short" }).toLowerCase(); // 'mon', 'tue', etc.
+    const availability = await DoctorAvailability.findOne({ doctorId, day });
+
+    if (!availability) {
+      return res.status(400).json({ message: "Doctor is not available on this day" });
+    }
+
+    // Generate valid slots
+    const validSlots = generateSlots(
+      availability.startTime,
+      availability.endTime,
+      availability.slotDuration
+    );
+
+    if (!validSlots.includes(timeSlot)) {
+      return res.status(400).json({ message: "Selected time slot is not available" });
     }
 
     // Prevent overbooking
@@ -31,27 +67,23 @@ export const bookAppointment = async (req, res) => {
     }
 
     // Auto-expiry after 24 hrs
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     const appointment = await Appointment.create({
       userId: req.userId,
-     doctorId: doctor._id, 
+      doctorId: doctor._id,
       date,
       timeSlot,
       status: "pending",
       expiresAt
     });
 
-    res.status(201).json({
-      message: "Appointment booked (pending)",
-      appointment
-    });
+    res.status(201).json({ message: "Appointment booked (pending)", appointment });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-
 /* ================= CONFIRM APPOINTMENT ================= */
 export const confirmAppointment = async (req, res) => {
   try {

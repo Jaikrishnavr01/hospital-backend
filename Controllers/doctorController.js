@@ -114,6 +114,47 @@ export const addDoctorAvailability = async (req, res) => {
 };
 
 
+export const setDoctorDepartment = async (req, res) => {
+  try {
+    const { doctorId, department } = req.body;
+
+    if (!doctorId || !department) {
+      return res.status(400).json({ message: "doctorId and department are required" });
+    }
+
+    const doctor = await UserModel.findById(doctorId);
+
+    if (!doctor || doctor.role !== "doctor") {
+      return res.status(400).json({ message: "Invalid doctorId" });
+    }
+
+    doctor.department = department;
+    await doctor.save();
+
+    res.json({
+      message: "Doctor department updated successfully",
+      doctor
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+export const getAllDoctors = async (req, res) => {
+  try {
+    const doctors = await UserModel.find({ role: "doctor" }).select("name email department");
+
+    res.json({
+      count: doctors.length,
+      doctors
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
 // consultation 
 export const startConsultation = async (req, res, next) => {
   try {
@@ -217,4 +258,6 @@ export const sendPrescriptionToPharmacy = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
 
