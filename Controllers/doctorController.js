@@ -5,6 +5,7 @@ import Prescription from "../Model/Prescription.js";
 import Patient from "../Model/Patient.js";
 import UserModel from "../Model/UserModel.js";
 import Medicine from "../Model/Medicine.js";
+import mongoose from "mongoose";
 
 export const getDoctorSlots = async (req, res) => {
   try {
@@ -261,3 +262,56 @@ export const sendPrescriptionToPharmacy = async (req, res) => {
 
 
 
+export const getDoctorAvailabilityCalendar = async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    let { month, year } = req.query;
+
+    if (month === undefined) {
+      return res.status(400).json({ message: "Month is required" });
+    }
+
+    month = Number(month); // 0-based
+    year = year ? Number(year) : 2026;
+
+    const doctorObjectId = new mongoose.Types.ObjectId(doctorId);
+
+    // 🔹 Get all available weekdays for doctor
+    const availabilities = await DoctorAvailability.find({
+      doctorId: doctorObjectId
+    });
+
+    const availableDays = availabilities.map(a => a.day); // ['wed', 'fri']
+
+    const availableDates = [];
+    const unavailableDates = [];
+
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateObj = new Date(year, month, d);
+
+      const dayName = dateObj
+        .toLocaleDateString("en-US", { weekday: "short" })
+        .toLowerCase()
+        .slice(0, 3); // mon, tue, wed...
+
+      const formattedDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+
+      if (availableDays.includes(dayName)) {
+        availableDates.push(formattedDate);
+      } else {
+        unavailableDates.push(formattedDate);
+      }
+    }
+
+    return res.status(200).json({
+      availableDates,
+      unavailableDates
+    });
+
+  } catch (err) {
+    console.error("Error fetching doctor availability:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};

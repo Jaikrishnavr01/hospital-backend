@@ -186,8 +186,8 @@ export const getMyAppointments = async (req, res) => {
 /* ================= VIEW ALL APPOINTMENTS ================= */
 export const getAllAppointments = async (req, res) => {
   try {
-    // Only nurse or admin can access
-    if (!["nurse", "admin"].includes(req.role)) {
+    //all can access
+    if (!["nurse", "admin", "doctor", "user"].includes(req.role)) {
       return res.status(403).json({ message: "Access denied" });
     }
 

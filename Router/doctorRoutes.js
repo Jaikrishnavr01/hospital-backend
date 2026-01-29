@@ -1,5 +1,5 @@
 import express from "express";
-import { addDoctorAvailability, getAllDoctors, getDoctorSlots, savePrescription, sendPrescriptionToPharmacy, setDoctorDepartment, startConsultation } from "../Controllers/doctorController.js";
+import { addDoctorAvailability, getAllDoctors, getDoctorAvailabilityCalendar, getDoctorSlots, savePrescription, sendPrescriptionToPharmacy, setDoctorDepartment, startConsultation } from "../Controllers/doctorController.js";
 import verifyToken from "../Middleware/verifyToken.js";
 import authorizeRoles  from "../Middleware/roles.js";
 import allowOnlyPaidVisit from "../Middleware/allowOnlyPaidView.js";
@@ -13,8 +13,15 @@ router.get("/slots", verifyToken, authorizeRoles("user", "doctor", "admin"), get
 router.post(
   "/availability",
   verifyToken,
-  authorizeRoles("doctor", "admin"),
+  authorizeRoles("doctor", "admin", "nurse"),
   addDoctorAvailability
+);
+
+router.get(
+  "/:doctorId/availability",
+  verifyToken,
+  authorizeRoles("user", "doctor", "admin", "nurse"),
+  getDoctorAvailabilityCalendar
 );
 
 router.post(
