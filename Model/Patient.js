@@ -5,7 +5,6 @@ const patientSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true,
-    unique: true
   },
 
   name: { type: String, required: true },
@@ -13,7 +12,14 @@ const patientSchema = new mongoose.Schema({
   gender: { type: String, enum: ["male", "female", "other"], required: true },
   phone: { type: String, required: true },
   email: { type: String, required: true },
-
+  vitals: {
+    bp: String,
+    pulse: String,
+    temperature: String,
+    weight: String,
+    height: String,
+    spo2: String
+  },
   address: {
     line1: { type: String, required: true },
     city: { type: String, required: true },

@@ -13,7 +13,6 @@ export const registerOpAndGenerateBill = async (req, res) => {
       appointmentId,
       doctorId,
       userId,
-
       name,
       age,
       gender,
@@ -33,20 +32,39 @@ export const registerOpAndGenerateBill = async (req, res) => {
       user = await User.findById(userId);
       if (!user) return res.status(404).json({ message: "User not found" });
     } else {
-      const tempPassword = crypto.randomBytes(4).toString("hex");
-      user = await User.create({
-        name,
-        email,
-        password: await bcrypt.hash(tempPassword, 10),
-        role: "user"
-      });
+      user = await User.findOne({ email });
+      if (!user) {
+        const tempPassword = "password123";
+        user = await User.create({
+          name,
+          email,
+          password: await bcrypt.hash(tempPassword, 10),
+          role: "user",
+          isActivated: true
+        });
+      }
     }
 
     /* ================= PATIENT ================= */
-    let patient = await Patient.findOne({ user: user._id });
+    let patient = await Patient.findOne({
+      user: user._id,
+      name: name.trim()
+    });
 
-    if (!patient) {
-      isFirstVisit = true;
+    if (patient) {
+      // Update existing patient
+      patient.age = age;
+      patient.gender = gender;
+      patient.phone = phone;
+      patient.email = email;
+      patient.address = address;
+      patient.bloodGroup = bloodGroup;
+      patient.emergencyContact = emergencyContact;
+      patient.vitals = vitals;
+
+      await patient.save();
+    } else {
+      // Create new patient
       patient = await Patient.create({
         user: user._id,
         name,
@@ -56,16 +74,19 @@ export const registerOpAndGenerateBill = async (req, res) => {
         email,
         address,
         bloodGroup,
-        emergencyContact
+        emergencyContact,
+        vitals
       });
     }
 
-    const previousVisits = await Visit.countDocuments({ patient: patient._id });
-    if (previousVisits === 0) isFirstVisit = true;
+    /* ================= FIRST VISIT ================= */
+    const previousVisits = await Visit.countDocuments({
+      patient: patient._id
+    });
+    isFirstVisit = previousVisits === 0;
 
-    /* ================= APPOINTMENT RESOLUTION ================= */
+    /* ================= APPOINTMENT ================= */
     let appointment;
-
     if (mongoose.Types.ObjectId.isValid(appointmentId)) {
       appointment = await Appointment.findById(appointmentId);
     } else {
@@ -73,14 +94,11 @@ export const registerOpAndGenerateBill = async (req, res) => {
     }
 
     if (!appointment) {
-      return res.status(404).json({
-        message: `Appointment ${appointmentId} not found`
-      });
+      return res.status(404).json({ message: `Appointment ${appointmentId} not found` });
     }
 
-    /* ================= DOCTOR RESOLUTION ================= */
+    /* ================= DOCTOR ================= */
     let doctor;
-
     if (mongoose.Types.ObjectId.isValid(doctorId)) {
       doctor = await User.findById(doctorId);
     } else {
@@ -88,9 +106,7 @@ export const registerOpAndGenerateBill = async (req, res) => {
     }
 
     if (!doctor) {
-      return res.status(404).json({
-        message: `Doctor ${doctorId} not found`
-      });
+      return res.status(404).json({ message: `Doctor ${doctorId} not found` });
     }
 
     /* ================= VISIT ================= */
@@ -104,10 +120,12 @@ export const registerOpAndGenerateBill = async (req, res) => {
 
     /* ================= BILL ================= */
     const items = [];
-    if (isFirstVisit) items.push({ name: "OP Registration", amount: 100 });
+    if (isFirstVisit) {
+      items.push({ name: "OP Registration", amount: 100 });
+    }
     items.push({ name: "Doctor Consultation", amount: 300 });
 
-    const totalAmount = items.reduce((sum, i) => sum + i.amount, 0);
+    const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
 
     const bill = await Bill.create({
       visit: visit._id,
@@ -117,7 +135,7 @@ export const registerOpAndGenerateBill = async (req, res) => {
     });
 
     visit.status = "BILL_GENERATED";
-    
+    await visit.save();
 
     /* ================= RESPONSE ================= */
     res.status(201).json({
@@ -129,10 +147,65 @@ export const registerOpAndGenerateBill = async (req, res) => {
       billId: bill._id,
       totalAmount
     });
-    
-    await visit.save();
+
   } catch (err) {
+    console.error("REGISTER OP ERROR:", err);
     res.status(500).json({ error: err.message });
   }
+};
 
+
+// export const getPatientByUserId = async (req, res) => {
+//   try {
+//     const patient = await Patient.findOne({ user: req.user.id });
+
+//     if (!patient) {
+//       return res.status(404).json({
+//         message: "Patient profile not created yet"
+//       });
+//     }
+
+//     return res.status(200).json({
+//       patientId: patient._id,
+//       patient
+//     });
+//   } catch (error) {
+//     console.error("GET PATIENT ERROR:", error);
+//     return res.status(500).json({ message: "Server error" });
+//   }
+// };
+
+
+/**
+ * Get all patients for the logged-in user
+ */
+export const getPatientIdsByUserId = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized: User ID missing" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid user ID format" });
+    }
+
+    const patients = await Patient.find({ user: userId }).lean();
+
+    if (!patients || patients.length === 0) {
+      return res.status(200).json({ count: 0, patientIds: [], patients: [] });
+    }
+
+    const patientIds = patients.map((p) => p._id);
+
+    return res.status(200).json({
+      count: patients.length,
+      patientIds,
+      patients, // full patient details
+    });
+  } catch (error) {
+    console.error("GET PATIENT IDS ERROR:", error);
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
 };
