@@ -7,7 +7,7 @@ import jwt from "jsonwebtoken";
 /* ================= SIGNUP ================= */
 export const Signup = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, phone } = req.body;
 
     const existingUser = await UserModel.findOne({ email });
     if (existingUser) {
@@ -17,9 +17,12 @@ export const Signup = async (req, res) => {
     const activationCode = uuidv4();
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const phoneNumber = `+91 ${phone}`;
+
     const user = new UserModel({
       name,
       email,
+      phone: phoneNumber,
       password: hashedPassword,
       activationCode,
       isActivated: false,
