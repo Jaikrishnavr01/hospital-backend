@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema({
   role: { type: String, enum: ["admin", "doctor", "nurse", "user", "pharmacist"], default: "user" },
   phone: { type: String},
   department: { type: String, required: function() { return this.role === "doctor"; } },
+  registrationNumber: { type: String, required: function() { return this.role === "doctor"; }, unique: true },
   activationCode: { type: String },
   isActivated: { type: Boolean, default: false },
   isBlocked: { type: Boolean, default: false },

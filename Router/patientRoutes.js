@@ -14,7 +14,7 @@ router.get(
 router.get(
   "/full-history/:patientId",
   verifyToken,
-  authorizeRoles("admin", "nurse"),
+  authorizeRoles("admin", "nurse", "doctor" , "user"),
   getFullPatientHistoryByPatientId
 );
 

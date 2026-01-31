@@ -2,7 +2,6 @@ import DoctorAvailability from "../Model/DoctorAvailability.js";
 import Appointment from "../Model/Appointment.js";
 import { generateSlots } from "../utils/slotGenerator.js";
 import Prescription from "../Model/Prescription.js";
-import Patient from "../Model/Patient.js";
 import UserModel from "../Model/UserModel.js";
 import Medicine from "../Model/Medicine.js";
 import mongoose from "mongoose";
@@ -115,12 +114,15 @@ export const addDoctorAvailability = async (req, res) => {
 };
 
 
-export const setDoctorDepartment = async (req, res) => {
+export const setDoctorDepartmentAndRegnum = async (req, res) => {
   try {
-    const { doctorId, department } = req.body;
+    const { doctorId, department, registrationNumber } = req.body;
 
     if (!doctorId || !department) {
       return res.status(400).json({ message: "doctorId and department are required" });
+    }
+    else if (!registrationNumber) {
+      return res.status(400).json({ message: "registrationNumber is required" });
     }
 
     const doctor = await UserModel.findById(doctorId);
@@ -130,6 +132,7 @@ export const setDoctorDepartment = async (req, res) => {
     }
 
     doctor.department = department;
+    doctor.registrationNumber = registrationNumber;
     await doctor.save();
 
     res.json({
@@ -260,8 +263,6 @@ export const sendPrescriptionToPharmacy = async (req, res) => {
   }
 };
 
-
-
 export const getDoctorAvailabilityCalendar = async (req, res) => {
   try {
     const { doctorId } = req.params;
@@ -315,3 +316,5 @@ export const getDoctorAvailabilityCalendar = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
+
+

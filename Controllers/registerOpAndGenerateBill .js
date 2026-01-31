@@ -6,6 +6,7 @@ import Bill from "../Model/Bill.js";
 import Appointment from "../Model/Appointment.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import Prescription from "../Model/Prescription.js";
 
 export const registerOpAndGenerateBill = async (req, res) => {
   try {
@@ -191,21 +192,36 @@ export const getPatientIdsByUserId = async (req, res) => {
       return res.status(400).json({ message: "Invalid user ID format" });
     }
 
+    // Get patients first
     const patients = await Patient.find({ user: userId }).lean();
-
+    
     if (!patients || patients.length === 0) {
       return res.status(200).json({ count: 0, patientIds: [], patients: [] });
     }
 
     const patientIds = patients.map((p) => p._id);
 
+    // Get visits for these patients
+    const visits = await Visit.find({ patient: { $in: patientIds } }).lean();
+    
+    // Get prescriptions for these patients  
+    const prescriptions = await Prescription.find({ patient: { $in: patientIds } }).lean();
+
+    // Add visits/prescriptions to each patient
+    const patientsWithData = patients.map(patient => ({
+      ...patient,
+      visits: visits.filter(v => v.patient.toString() === patient._id.toString()),
+      prescriptions: prescriptions.filter(p => p.patient.toString() === patient._id.toString())
+    }));
+
     return res.status(200).json({
       count: patients.length,
       patientIds,
-      patients, // full patient details
+      patients: patientsWithData
     });
   } catch (error) {
     console.error("GET PATIENT IDS ERROR:", error);
     return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
