@@ -192,36 +192,62 @@ export const getPatientIdsByUserId = async (req, res) => {
       return res.status(400).json({ message: "Invalid user ID format" });
     }
 
-    // Get patients first
+    /* ================= PATIENTS ================= */
     const patients = await Patient.find({ user: userId }).lean();
-    
+
     if (!patients || patients.length === 0) {
-      return res.status(200).json({ count: 0, patientIds: [], patients: [] });
+      return res.status(200).json({
+        count: 0,
+        patientIds: [],
+        patients: []
+      });
     }
 
-    const patientIds = patients.map((p) => p._id);
+    const patientIds = patients.map(p => p._id);
 
-    // Get visits for these patients
-    const visits = await Visit.find({ patient: { $in: patientIds } }).lean();
-    
-    // Get prescriptions for these patients  
-    const prescriptions = await Prescription.find({ patient: { $in: patientIds } }).lean();
+    /* ================= VISITS ================= */
+    const visits = await Visit.find({
+      patient: { $in: patientIds }
+    })
+      .populate("doctor", "name email")
+      .lean();
 
-    // Add visits/prescriptions to each patient
+    /* ================= PRESCRIPTIONS ================= */
+const prescriptions = await Prescription.find({
+  patient: { $in: patientIds }
+})
+  .populate({
+    path: "medicines",
+    select: "name dosage duration"
+  })
+  .populate("doctor", "name email")
+  .populate("visit")
+  .lean();
+
+
+    /* ================= MERGE DATA ================= */
     const patientsWithData = patients.map(patient => ({
       ...patient,
-      visits: visits.filter(v => v.patient.toString() === patient._id.toString()),
-      prescriptions: prescriptions.filter(p => p.patient.toString() === patient._id.toString())
+      visits: visits.filter(
+        v => v.patient.toString() === patient._id.toString()
+      ),
+      prescriptions: prescriptions.filter(
+        p => p.patient.toString() === patient._id.toString()
+      )
     }));
 
     return res.status(200).json({
-      count: patients.length,
+      count: patientsWithData.length,
       patientIds,
       patients: patientsWithData
     });
+
   } catch (error) {
     console.error("GET PATIENT IDS ERROR:", error);
-    return res.status(500).json({ message: "Server error", error: error.message });
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message
+    });
   }
 };
 

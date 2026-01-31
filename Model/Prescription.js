@@ -6,8 +6,15 @@ const prescriptionSchema = new mongoose.Schema({
     ref: "Visit",
   },
 
-    patient: { type: mongoose.Schema.Types.ObjectId, ref: "Patient" },
-  doctor: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  patient: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Patient"
+  },
+
+  doctor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User"
+  },
 
   diagnosis: {
     type: String,
@@ -16,15 +23,28 @@ const prescriptionSchema = new mongoose.Schema({
 
   medicines: [
     {
-      name: { type: String, required: true },
-      dosage: { type: String, required: true },     // 1-0-1
-      duration: { type: String, required: true },   // 5 days
-      instructions: { type: String },    
-      quantity: Number,            // after food
+      name: {
+        type: String,
+        required: true
+      },
+      dosage: {
+        type: String,
+        required: true // 1-0-1
+      },
+      duration: {
+        type: String,
+        required: true // 5 days
+      },
+      instructions: {
+        type: String // after food
+      },
+      quantity: {
+        type: Number
+      },
       dispensedQty: {
-      type: Number,
-      default: 0          // 👈 REQUIRED
-    },
+        type: Number,
+        default: 0
+      }
     }
   ],
 
@@ -34,7 +54,7 @@ const prescriptionSchema = new mongoose.Schema({
 
   priority: {
     type: String,
-    enum: ["LOW", "HIGH", "NORMAL"],
+    enum: ["LOW", "NORMAL", "HIGH"],
     default: "NORMAL"
   },
 
@@ -42,17 +62,6 @@ const prescriptionSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-
-  medicines: [
-  {
-    medicineName: String,
-    prescribedQty: Number,
-    dispensedQty: {
-      type: Number,
-      default: 0
-    }
-  }
-  ],
 
   dispensed: {
     type: Boolean,
