@@ -209,7 +209,7 @@ export const getPatientIdsByUserId = async (req, res) => {
     const visits = await Visit.find({
       patient: { $in: patientIds }
     })
-      .populate("doctor", "name email")
+      .populate("doctor", "name email department")
       .lean();
 
     /* ================= PRESCRIPTIONS ================= */
@@ -220,7 +220,7 @@ const prescriptions = await Prescription.find({
     path: "medicines",
     select: "name dosage duration"
   })
-  .populate("doctor", "name email")
+  .populate("doctor", "name email department")
   .populate("visit")
   .lean();
 
@@ -250,4 +250,6 @@ const prescriptions = await Prescription.find({
     });
   }
 };
+
+
 
