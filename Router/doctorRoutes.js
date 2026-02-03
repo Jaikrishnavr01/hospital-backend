@@ -1,9 +1,10 @@
 import express from "express";
-import { addDoctorAvailability, getAllDoctors, getDoctorAvailabilityCalendar, getDoctorSlots, savePrescription, sendPrescriptionToPharmacy, setDoctorDepartmentAndRegnum, startConsultation } from "../Controllers/doctorController.js";
+import { addDoctorAvailability, getAllDoctors, getDoctorAvailabilityCalendar, getDoctorSlots, savePrescription, sendPrescriptionToPharmacy, setDoctorDepartmentAndRegnum, startConsultation, uploadDoctorSignature } from "../Controllers/doctorController.js";
 import verifyToken from "../Middleware/verifyToken.js";
 import authorizeRoles  from "../Middleware/roles.js";
 import allowOnlyPaidVisit from "../Middleware/allowOnlyPaidView.js";
 import { getEPrescriptionByVisit } from "../Controllers/prescriptionController.js";
+import { uploadSignature } from "../Middleware/uploadSignature.js";
 
 
 const router = express.Router();
@@ -43,6 +44,13 @@ router.get(
   getEPrescriptionByVisit
 );
 
+router.post(
+  "/:id/signature",
+  verifyToken,                 // 🔥 MUST BE FIRST
+  authorizeRoles("doctor", "admin"),
+  uploadSignature.single("signature"),
+  uploadDoctorSignature
+);
 // Admin sets/updates department for doctor
 router.put("/department-reg", verifyToken, authorizeRoles("admin", "doctor"), setDoctorDepartmentAndRegnum);
 

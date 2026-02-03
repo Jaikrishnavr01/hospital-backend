@@ -317,4 +317,67 @@ export const getDoctorAvailabilityCalendar = async (req, res) => {
   }
 };
 
+export const uploadDoctorSignature = async (req, res) => {
+  try {
+    const loggedInUserId = req.userId;
+    const loggedInRole = req.role;
+    const targetUserId = req.params.id;
+
+    if (!loggedInUserId || !loggedInRole) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        message: "Signature file required"
+      });
+    }
+
+    let targetUser;
+
+    // 🩺 Doctor → own signature
+    if (loggedInRole === "doctor") {
+      if (loggedInUserId !== targetUserId) {
+        return res.status(403).json({
+          message: "Doctors can upload only their own signature"
+        });
+      }
+      targetUser = await UserModel.findById(loggedInUserId);
+    }
+
+    // 🛡 Admin → any doctor
+    else if (loggedInRole === "admin") {
+      targetUser = await UserModel.findById(targetUserId);
+
+      if (!targetUser) {
+        return res.status(404).json({ message: "Doctor not found" });
+      }
+
+      if (targetUser.role !== "doctor") {
+        return res.status(400).json({
+          message: "Signature allowed only for doctors"
+        });
+      }
+    }
+
+    else {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    // ✅ NORMALIZE PATH (🔥 important fix)
+    const normalizedPath = req.file.path.replace(/\\/g, "/");
+
+    targetUser.signature = normalizedPath;
+    await targetUser.save();
+
+    res.json({
+      message: "Signature uploaded successfully",
+      signature: normalizedPath
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 

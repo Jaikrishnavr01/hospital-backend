@@ -12,6 +12,7 @@ import pharmacy from "./Router/pharmacy.js"
 import doctorRoutes from "./Router/doctorRoutes.js";
 import "./cron/expireAppointment.js";
 import cors from "cors"
+import path from "path";
 
 dotenv.config();
 connectDB();
@@ -25,7 +26,7 @@ app.use(
   })
 );
 app.use(express.json());
-
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use("/auth", userRoutes);
 
 app.use("/", Dashboard)
