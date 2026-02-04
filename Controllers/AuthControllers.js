@@ -15,7 +15,6 @@ export const Signup = async (req, res) => {
       role = "user", // default to user
       department,
       registrationNumber,
-      signature,
     } = req.body;
 
     // Check if user already exists
@@ -41,14 +40,13 @@ export const Signup = async (req, res) => {
 
     // Only add doctor-specific fields if role === doctor
     if (role === "doctor") {
-      if (!department || !registrationNumber || !signature) {
+      if (!department || !registrationNumber) {
         return res
           .status(400)
-          .json({ message: "Doctors must provide department, registrationNumber, and signature" });
+          .json({ message: "Doctors must provide department, registrationNumber" });
       }
       newUserData.department = department;
       newUserData.registrationNumber = registrationNumber;
-      newUserData.signature = signature;
     }
 
     const user = new UserModel(newUserData);

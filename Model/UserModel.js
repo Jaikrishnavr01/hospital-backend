@@ -8,7 +8,7 @@ const userSchema = new mongoose.Schema({
   phone: { type: String},
   department: { type: String, required: function() { return this.role === "doctor"; } },
   registrationNumber: { type: String, required: function() { return this.role === "doctor"; }, unique: true },
-  signature: { type: String, required: function() { return this.role === "doctor"; } },
+  signature: { type: String, function() { return this.role === "doctor"; } },
   activationCode: { type: String },
   isActivated: { type: Boolean, default: false },
   isBlocked: { type: Boolean, default: false },
