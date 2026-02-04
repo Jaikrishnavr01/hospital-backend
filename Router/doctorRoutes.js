@@ -1,5 +1,5 @@
 import express from "express";
-import { addDoctorAvailability, getAllDoctors, getDoctorAvailabilityCalendar, getDoctorSlots, savePrescription, sendPrescriptionToPharmacy, setDoctorDepartmentAndRegnum, startConsultation, uploadDoctorSignature } from "../Controllers/doctorController.js";
+import { addDoctorAvailability, getActiveAppointmentsByDoctor, getAllDoctors, getDoctorAvailabilityCalendar, getDoctorSlots, getUpcomingAppointmentsByDoctor, savePrescription, sendPrescriptionToPharmacy, setDoctorDepartmentAndRegnum, startConsultation, uploadDoctorSignature } from "../Controllers/doctorController.js";
 import verifyToken from "../Middleware/verifyToken.js";
 import authorizeRoles  from "../Middleware/roles.js";
 import allowOnlyPaidVisit from "../Middleware/allowOnlyPaidView.js";
@@ -50,6 +50,23 @@ router.post(
   authorizeRoles("doctor", "admin"),
   uploadSignature.single("signature"),
   uploadDoctorSignature
+);
+
+
+// Today active appointments
+router.get(
+  "/:doctorId/appointments/active",
+  verifyToken,
+  authorizeRoles("doctor"),
+  getActiveAppointmentsByDoctor
+);
+
+// Upcoming appointments
+router.get(
+  "/:doctorId/appointments/upcoming",
+  verifyToken,
+  authorizeRoles("doctor"),
+  getUpcomingAppointmentsByDoctor
 );
 // Admin sets/updates department for doctor
 router.put("/department-reg", verifyToken, authorizeRoles("admin", "doctor"), setDoctorDepartmentAndRegnum);

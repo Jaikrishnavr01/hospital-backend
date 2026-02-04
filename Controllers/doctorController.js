@@ -380,4 +380,79 @@ export const uploadDoctorSignature = async (req, res) => {
   }
 };
 
+export const getActiveAppointmentsByDoctor = async (req, res) => {
+  try {
+    let doctorId;
+
+    if (req.role === "doctor") {
+      doctorId = req.userId;
+    } else if (req.role === "admin") {
+      doctorId = req.params.doctorId;
+      if (!doctorId) {
+        return res.status(400).json({ message: "doctorId is required" });
+      }
+    } else {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+
+    const appointments = await Appointment.find({
+      doctorId,
+      date: today,
+      status: { $ne: "cancelled" }
+    })
+      .populate("userId", "name age gender phone")
+      .sort({ timeSlot: 1 });
+
+    res.json({
+      count: appointments.length,
+      appointments
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const getUpcomingAppointmentsByDoctor = async (req, res) => {
+  try {
+    let doctorId;
+
+    if (req.role === "doctor") {
+      doctorId = req.userId;
+    } else if (req.role === "admin") {
+      doctorId = req.params.doctorId;
+      if (!doctorId) {
+        return res.status(400).json({ message: "doctorId is required" });
+      }
+    } else {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+
+    const appointments = await Appointment.find({
+      doctorId,
+      date: { $gt: today }, // ✅ strictly future dates
+      status: { $ne: "cancelled" }
+    })
+      .populate("userId", "name age gender phone")
+      .populate("doctorId", "name department")
+      .sort({ date: 1, timeSlot: 1 });
+
+    res.json({
+      count: appointments.length,
+      appointments
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+
+
+
 
