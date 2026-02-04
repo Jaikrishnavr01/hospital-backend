@@ -9,6 +9,7 @@ import appointmentRoutes from "./Router/appointmentRoutes.js";
 import opRouters from "./Router/opRoutes.js"
 import patientRoutes from "./Router/patientRoutes.js"
 import pharmacy from "./Router/pharmacy.js"
+import hospitalRoute from "./Router/hospitalRoutes.js";
 import doctorRoutes from "./Router/doctorRoutes.js";
 import "./cron/expireAppointment.js";
 import cors from "cors"
@@ -30,6 +31,7 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use("/auth", userRoutes);
 
 app.use("/", Dashboard)
+app.use("/api/hospital", hospitalRoute);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/patients", patientRoutes);
 app.use("/api/doctors", doctorRoutes);
