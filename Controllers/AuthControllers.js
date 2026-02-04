@@ -7,8 +7,18 @@ import jwt from "jsonwebtoken";
 /* ================= SIGNUP ================= */
 export const Signup = async (req, res) => {
   try {
-    const { name, email, password, phone } = req.body;
+    const {
+      name,
+      email,
+      password,
+      phone,
+      role = "user", // default to user
+      department,
+      registrationNumber,
+      signature,
+    } = req.body;
 
+    // Check if user already exists
     const existingUser = await UserModel.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
@@ -16,35 +26,46 @@ export const Signup = async (req, res) => {
 
     const activationCode = uuidv4();
     const hashedPassword = await bcrypt.hash(password, 10);
+    const phoneNumber = phone ? `+91 ${phone}` : undefined;
 
-    const phoneNumber = `+91 ${phone}`;
-
-    const user = new UserModel({
+    // Build user object dynamically
+    const newUserData = {
       name,
       email,
-      phone: phoneNumber,
       password: hashedPassword,
+      phone: phoneNumber,
+      role,
       activationCode,
       isActivated: false,
-    });
+    };
 
-    await user.save();
+    // Only add doctor-specific fields if role === doctor
+    if (role === "doctor") {
+      if (!department || !registrationNumber || !signature) {
+        return res
+          .status(400)
+          .json({ message: "Doctors must provide department, registrationNumber, and signature" });
+      }
+      newUserData.department = department;
+      newUserData.registrationNumber = registrationNumber;
+      newUserData.signature = signature;
+    }
 
+    const user = new UserModel(newUserData);
+
+    await user.save(); // MongoDB will now only enforce unique registrationNumber for doctors
+
+    // Send activation email
     const transporter = nodemailer.createTransport({
-      service: "gmail", // recommended
-       tls: {
-    rejectUnauthorized: false
-  },
+      service: "gmail",
+      tls: { rejectUnauthorized: false },
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
     });
 
-    const activationLink = `http://localhost:8001/auth/activate/${activationCode}`;
-
-   
-
+    const activationLink = `http://localhost:${process.env.PORT}/auth/activate/${activationCode}`;
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
@@ -57,15 +78,13 @@ export const Signup = async (req, res) => {
       `,
     });
 
-  
-
     res.status(201).json({
       message: "Signup successful! Please check your email to activate your account.",
     });
   } catch (error) {
     res.status(500).json({ message: "Signup failed", error: error.message });
   }
-};
+};  
 
 /* ================= ACTIVATE ACCOUNT ================= */
 export const activate = async (req, res) => {
