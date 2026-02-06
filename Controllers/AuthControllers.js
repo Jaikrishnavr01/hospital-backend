@@ -3,86 +3,133 @@ import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 import { v4 as uuidv4 } from "uuid";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 
 /* ================= SIGNUP ================= */
-export const Signup = async (req, res) => {
-  try {
-    const {
-      name,
-      email,
-      password,
-      phone,
-      role = "user", // default to user
-      department,
-      registrationNumber,
-    } = req.body;
 
-    // Check if user already exists
+// Helper: ensure registrationNumber index is safe
+const ensureRegistrationNumberIndex = async () => {
+  const db = mongoose.connection.db;
+  const usersCollection = db.collection("users");
+
+  // Drop old index if exists
+  try {
+    await usersCollection.dropIndex("registrationNumber_1");
+    console.log("Old registrationNumber index dropped");
+  } catch (err) {
+    console.log("No old index found, skipping drop");
+  }
+
+  // Clean non-doctor documents
+  await usersCollection.updateMany(
+    { role: { $ne: "doctor" } },
+    { $unset: { registrationNumber: "" } }
+  );
+  console.log("Non-doctor registrationNumber fields cleaned");
+
+  // Create new sparse unique index
+  await usersCollection.createIndex(
+    { registrationNumber: 1 },
+    { unique: true, sparse: true }
+  );
+  console.log("Sparse unique index ensured for registrationNumber");
+};
+
+export const Signup = async (req, res) => {
+  const { name, email, password, role, phone, department, registrationNumber } = req.body;
+
+  try {
+    // 0. Ensure registrationNumber index is correct before signup
+    await ensureRegistrationNumberIndex();
+
+    // 1. Check if email already exists
     const existingUser = await UserModel.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
+      return res.status(400).json({ message: "Email already exists" });
     }
 
-    const activationCode = uuidv4();
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const phoneNumber = phone ? `+91 ${phone}` : undefined;
-
-    // Build user object dynamically
-    const newUserData = {
-      name,
-      email,
-      password: hashedPassword,
-      phone: phoneNumber,
-      role,
-      activationCode,
-      isActivated: false,
-    };
-
-    // Only add doctor-specific fields if role === doctor
+    // 2. Validate doctor-only fields
     if (role === "doctor") {
       if (!department || !registrationNumber) {
-        return res
-          .status(400)
-          .json({ message: "Doctors must provide department, registrationNumber" });
+        return res.status(400).json({ message: "Department and Registration Number are required for doctors." });
       }
-      newUserData.department = department;
-      newUserData.registrationNumber = registrationNumber;
+
+      // Optional: check registrationNumber uniqueness
+      const regExists = await UserModel.findOne({ registrationNumber });
+      if (regExists) {
+        return res.status(400).json({ message: "Registration Number already exists" });
+      }
     }
 
-    const user = new UserModel(newUserData);
+    // 3. Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashPassword = await bcrypt.hash(password, salt);
 
-    await user.save(); // MongoDB will now only enforce unique registrationNumber for doctors
+    // 4. Create user object conditionally
+    const activationCode = uuidv4();
+    const userData = {
+      name,
+      email,
+      password: hashPassword,
+      role,
+      phone,
+      activationCode,
+      ...(role === "doctor" && { department, registrationNumber })
+    };
 
-    // Send activation email
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      tls: { rejectUnauthorized: false },
+    // 5. Save user
+    const user = new UserModel(userData);
+    await user.save();
+
+    // 6. Send activation email
+    const transport = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        pass: process.env.EMAIL_PASS
       },
+      tls: {
+    rejectUnauthorized: false, // <<< add this line
+  }
     });
+
 
     const activationLink = `http://localhost:${process.env.PORT}/auth/activate/${activationCode}`;
 
-    await transporter.sendMail({
+    const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "Account Activation",
-      html: `
+      subject: "Activate your account",
+     html: `
         <h3>Welcome ${name}</h3>
         <p>Click the link below to activate your account:</p>
         <a href="${activationLink}">${activationLink}</a>
       `,
-    });
+    };
 
-    res.status(201).json({
-      message: "Signup successful! Please check your email to activate your account.",
-    });
+    await transport.sendMail(mailOptions);
+
+    // 7. Respond to client
+    res.status(200).json({ message: "Signup successful. Please check your email to activate your account." });
+
   } catch (error) {
-    res.status(500).json({ message: "Signup failed", error: error.message });
+    console.error(error);
+
+    // Catch duplicate key errors
+    if (error.code === 11000) {
+      if (error.keyPattern?.registrationNumber) {
+        return res.status(400).json({ message: "Registration Number already exists" });
+      }
+      if (error.keyPattern?.email) {
+        return res.status(400).json({ message: "Email already exists" });
+      }
+    }
+
+    res.status(500).json({ message: "Internal server error", error: error.message });
   }
-};  
+};
 
 /* ================= ACTIVATE ACCOUNT ================= */
 export const activate = async (req, res) => {
