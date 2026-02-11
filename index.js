@@ -14,6 +14,7 @@ import doctorRoutes from "./Router/doctorRoutes.js";
 import "./cron/expireAppointment.js";
 import cors from "cors"
 import path from "path";
+import "./cron/index.js";
 
 dotenv.config();
 connectDB();

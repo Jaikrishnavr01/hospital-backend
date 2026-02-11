@@ -5,40 +5,53 @@ import Prescription from "../Model/Prescription.js";
 import UserModel from "../Model/UserModel.js";
 import Medicine from "../Model/Medicine.js";
 import mongoose from "mongoose";
+import { to12Hour } from "../Utils/timeFormatter.js";
+
 
 export const getDoctorSlots = async (req, res) => {
   try {
     const { doctorId, date } = req.query;
 
-    if (!doctorId || !date) {
-      return res.status(400).json({ message: "doctorId and date required" });
-    }
-
     const day = new Date(date)
       .toLocaleDateString("en-US", { weekday: "short" })
       .toLowerCase();
 
-    const availability = await DoctorAvailability.findOne({ doctorId, day });
-    if (!availability) return res.json([]);
+    // date override > weekly
+    const availability =
+      await DoctorAvailability.findOne({ doctorId, date }) ||
+      await DoctorAvailability.findOne({ doctorId, day });
 
-    const allSlots = generateSlots(
+    if (!availability) {
+      return res.json({ slots: [] });
+    }
+
+    // internal 24h slots
+    const slots24 = generateSlots(
       availability.startTime,
       availability.endTime,
-      availability.slotDuration
+      availability.slotDuration,
+      "24"
     );
 
     const booked = await Appointment.find({
       doctorId,
       date,
-      status: { $ne: "cancelled" }
-    });
+      status: { $in: ["pending", "confirmed"] }
+    }).distinct("timeSlot");
 
-    const bookedSlots = booked.map(b => b.timeSlot);
-    const availableSlots = allSlots.filter(
-      slot => !bookedSlots.includes(slot)
+    const available24 = slots24.filter(
+      s => !booked.includes(s)
     );
 
-    res.json(availableSlots);
+    // convert ONLY AVAILABLE slots to 12h
+    const available12 = available24.map(slot =>
+      generateSlots(slot, slot, 0, "12")[0]
+    );
+
+    res.json({
+      slots: available12 // AM/PM response
+    });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -48,71 +61,68 @@ export const getDoctorSlots = async (req, res) => {
 /* DOCTOR / ADMIN: ADD SLOT TIMINGS */
 export const addDoctorAvailability = async (req, res) => {
   try {
-    let { doctorId, day, startTime, endTime, slotDuration } = req.body;
+    let { doctorId, date, day, startTime, endTime, slotDuration } = req.body;
 
-    // Normalize day
-    day = day?.toLowerCase().slice(0, 3);
+    if (req.role === "doctor") doctorId = req.userId;
+    if (!doctorId) return res.status(400).json({ message: "doctorId is required" });
 
-    const validDays = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-    if (!validDays.includes(day)) {
-      return res.status(400).json({ message: "Invalid day" });
-    }
-
-    // Doctor adds only for self
-    if (req.role === "doctor") {
-      doctorId = req.userId;
-    }
-
-    // Admin must pass doctorId
-    if (!doctorId) {
-      return res.status(400).json({ message: "doctorId is required" });
-    }
-
-    // Validate doctor exists
+    // Validate doctor
     const doctor = await UserModel.findById(doctorId);
-    if (!doctor || doctor.role !== "doctor") {
-      return res.status(400).json({ message: "Invalid doctorId" });
+    if (!doctor || doctor.role !== "doctor") return res.status(400).json({ message: "Invalid doctorId" });
+
+    if (!startTime || !endTime || startTime >= endTime)
+      return res.status(400).json({ message: "startTime must be before endTime" });
+
+    if (!slotDuration || slotDuration <= 0)
+      return res.status(400).json({ message: "Invalid slotDuration" });
+
+    let normalizedDate = null;
+    let normalizedDay = null;
+
+    if (date) {
+      // Date-specific slot
+      const parsedDate = new Date(date);
+      if (isNaN(parsedDate.getTime())) return res.status(400).json({ message: "Invalid date format" });
+      normalizedDate = parsedDate.toISOString().split("T")[0];
+      normalizedDay = parsedDate.toLocaleString("en-US", { weekday: "short", timeZone: "Asia/Kolkata" }).toLowerCase();
+
+      // Remove any conflicting weekly availability for this day
+      await DoctorAvailability.deleteMany({ doctorId, day: normalizedDay, date: null });
+
+      // Prevent duplicate date-specific
+      const existingDate = await DoctorAvailability.findOne({ doctorId, date: normalizedDate });
+      if (existingDate) return res.status(400).json({ message: "Availability already exists for this date" });
+
+    } else if (day) {
+      // Weekly slot
+      normalizedDay = day.toLowerCase();
+      if (!["mon","tue","wed","thu","fri","sat","sun"].includes(normalizedDay))
+        return res.status(400).json({ message: "Invalid day value" });
+
+      // Prevent duplicate weekly
+      const existingDay = await DoctorAvailability.findOne({ doctorId, day: normalizedDay, date: null });
+      if (existingDay) return res.status(400).json({ message: "Availability already exists for this day" });
+
+    } else {
+      return res.status(400).json({ message: "Either date or day is required" });
     }
 
-    // Time validation
-    if (startTime >= endTime) {
-      return res.status(400).json({
-        message: "startTime must be before endTime"
-      });
-    }
-
-    if (!slotDuration || slotDuration <= 0) {
-      return res.status(400).json({
-        message: "Invalid slotDuration"
-      });
-    }
-
-    // Prevent duplicate availability
-    const existing = await DoctorAvailability.findOne({ doctorId, day });
-    if (existing) {
-      return res.status(400).json({
-        message: "Availability already exists for this day"
-      });
-    }
-
+    // Create availability
     const availability = await DoctorAvailability.create({
       doctorId,
-      day,
+      date: normalizedDate,
+      day: normalizedDay,
       startTime,
       endTime,
       slotDuration
     });
 
-    res.status(201).json({
-      message: "Slot timings added successfully",
-      availability
-    });
+    res.status(201).json({ message: "Doctor availability added successfully", availability });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 export const setDoctorDepartmentAndRegnum = async (req, res) => {
   try {
@@ -380,6 +390,7 @@ export const uploadDoctorSignature = async (req, res) => {
   }
 };
 
+
 export const getActiveAppointmentsByDoctor = async (req, res) => {
   try {
     let doctorId;
@@ -405,9 +416,15 @@ export const getActiveAppointmentsByDoctor = async (req, res) => {
       .populate("userId", "name age gender phone")
       .sort({ timeSlot: 1 });
 
+    // 🔥 ADD 12-hour slot (non-breaking)
+    const formatted = appointments.map(a => ({
+      ...a.toObject(),
+      timeSlot12: to12Hour(a.timeSlot)
+    }));
+
     res.json({
-      count: appointments.length,
-      appointments
+      count: formatted.length,
+      appointments: formatted
     });
 
   } catch (err) {
@@ -430,29 +447,32 @@ export const getUpcomingAppointmentsByDoctor = async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+    const today = new Date().toISOString().split("T")[0];
 
     const appointments = await Appointment.find({
       doctorId,
-      date: { $gt: today }, // ✅ strictly future dates
+      date: { $gt: today },
       status: { $ne: "cancelled" }
     })
       .populate("userId", "name age gender phone")
       .populate("doctorId", "name department")
       .sort({ date: 1, timeSlot: 1 });
 
+    // 🔥 ADD 12-hour slot (non-breaking)
+    const formatted = appointments.map(a => ({
+      ...a.toObject(),
+      timeSlot12: to12Hour(a.timeSlot)
+    }));
+
     res.json({
-      count: appointments.length,
-      appointments
+      count: formatted.length,
+      appointments: formatted
     });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-
-
-
 
 
 

@@ -6,16 +6,21 @@ const availabilitySchema = new mongoose.Schema({
     ref: "User",
     required: true
   },
-  day: {
-    type: String,
-    enum: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+
+day: {
+  type: String,
+},
+
+ date: {
+    type: String, // YYYY-MM-DD
   },
+
   startTime: String,
   endTime: String,
   slotDuration: {
     type: Number,
     default: 30
   }
-});
+},{ timestamps: true });
 
 export default mongoose.model("DoctorAvailability", availabilitySchema);
