@@ -174,17 +174,36 @@ export const startConsultation = async (req, res, next) => {
   try {
     const visit = req.visit;
 
-    // Already started → skip
-    if (visit.status === "CONSULTED") {
+    // console.log("===== DEBUG START =====");
+    // console.log("VISIT ID:", visit._id);
+    // console.log("VISIT OBJECT:", visit);
+    // console.log("VISIT APPOINTMENT FIELD:", visit.appointment);
+
+    // Check if appointment exists
+    const appointment = await Appointment.findById(visit.appointment);
+
+    // console.log("FOUND APPOINTMENT:", appointment);
+
+    if (!appointment) {
+      console.log("❌ NO APPOINTMENT FOUND");
       return next();
     }
+
+    appointment.status = "completed";
+    await appointment.save();
+
+    // console.log("✅ APPOINTMENT UPDATED SUCCESSFULLY");
 
     visit.status = "CONSULTED";
     await visit.save();
 
-    next(); // ✅ VERY IMPORTANT
+    // console.log("===== DEBUG END =====");
+
+    next();
+
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 };
 
@@ -282,17 +301,27 @@ export const getDoctorAvailabilityCalendar = async (req, res) => {
       return res.status(400).json({ message: "Month is required" });
     }
 
-    month = Number(month); // 0-based
+    month = Number(month); // JS 0-based month
     year = year ? Number(year) : 2026;
 
     const doctorObjectId = new mongoose.Types.ObjectId(doctorId);
 
-    // 🔹 Get all available weekdays for doctor
+    // 🔹 Get all availability records for the doctor
     const availabilities = await DoctorAvailability.find({
       doctorId: doctorObjectId
     });
 
-    const availableDays = availabilities.map(a => a.day); // ['wed', 'fri']
+    // Separate weekly vs daily
+    const weeklyDays = availabilities
+      .filter(a => !a.date) // no specific date → weekly
+      .map(a => a.day.toLowerCase().slice(0, 3)); // ['mon', 'wed']
+
+    const dailyDates = availabilities
+      .filter(a => a.date) // specific dates → daily
+      .map(a => {
+        const d = new Date(a.date);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      });
 
     const availableDates = [];
     const unavailableDates = [];
@@ -302,14 +331,16 @@ export const getDoctorAvailabilityCalendar = async (req, res) => {
     for (let d = 1; d <= daysInMonth; d++) {
       const dateObj = new Date(year, month, d);
 
+      const formattedDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
       const dayName = dateObj
         .toLocaleDateString("en-US", { weekday: "short" })
         .toLowerCase()
         .slice(0, 3); // mon, tue, wed...
 
-      const formattedDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-
-      if (availableDays.includes(dayName)) {
+      // ✅ Daily has higher priority
+      if (dailyDates.includes(formattedDate)) {
+        availableDates.push(formattedDate);
+      } else if (weeklyDays.includes(dayName)) {
         availableDates.push(formattedDate);
       } else {
         unavailableDates.push(formattedDate);
@@ -320,12 +351,12 @@ export const getDoctorAvailabilityCalendar = async (req, res) => {
       availableDates,
       unavailableDates
     });
-
   } catch (err) {
     console.error("Error fetching doctor availability:", err);
     return res.status(500).json({ message: "Server error" });
   }
 };
+
 
 export const uploadDoctorSignature = async (req, res) => {
   try {

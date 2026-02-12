@@ -18,6 +18,7 @@ import authorizeRoles from "../Middleware/roles.js";
 import allowOnlyPaidVisit from "../Middleware/allowOnlyPaidView.js";
 import { getEPrescriptionByVisit } from "../Controllers/prescriptionController.js";
 import { uploadSignature } from "../Middleware/uploadSignature.js";
+import { getVisit } from "../Controllers/registerOpAndGenerateBill .js";
 
 const router = express.Router();
 
@@ -49,6 +50,7 @@ router.get(
 router.post(
   "/consult/:visitId",
   verifyToken,
+  getVisit,
   authorizeRoles("doctor"),
   allowOnlyPaidVisit,
   startConsultation,

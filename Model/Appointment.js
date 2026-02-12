@@ -6,7 +6,7 @@ const AppointmentSchema = new mongoose.Schema({
   date: String,       // YYYY-MM-DD
   timeSlot: String,   // "14:30"
 
-  status: { type: String, enum: ["pending", "confirmed", "cancelled"], default: "pending" },
+  status: { type: String, enum: ["pending", "confirmed", "cancelled", "completed"], default: "pending" },
 
   // Booking lock (5 min)
   isLocked: { type: Boolean, default: false },

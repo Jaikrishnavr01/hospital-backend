@@ -253,3 +253,18 @@ const prescriptions = await Prescription.find({
 
 
 
+export const getVisit = async (req, res, next) => {
+  try {
+    const visit = await Visit.findById(req.params.visitId);
+
+    if (!visit) {
+      return res.status(404).json({ message: "Visit not found" });
+    }
+
+    req.visit = visit; // IMPORTANT
+
+    next();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

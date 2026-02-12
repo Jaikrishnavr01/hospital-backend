@@ -72,11 +72,14 @@ export const requestAppointment = async (req, res) => {
     }
 
     // Step 4: Lock appointment
-    appointment.isLocked = true;
-    appointment.lockExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
+// Lock for 24 hours
+appointment.isLocked = true;
+appointment.lockExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours in ms
 
-    appointment.isTempLocked = true;
-    appointment.tempLockExpiresAt = new Date(Date.now() + 2 * 60 * 1000);
+// Temporary lock for 24 hours as well
+appointment.isTempLocked = true;
+appointment.tempLockExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours in ms
+
 
     appointment.userId = req.userId;
     await appointment.save();
@@ -188,6 +191,79 @@ export const getAllAppointments = async (req, res) => {
     res.json({ message: "All appointments fetched successfully", appointments });
 
   } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ================= GET TIME SLOTS FOR FRONTEND =================
+export const getTimeSlots = async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const { date } = req.query; // <-- get date from query, NOT body
+
+    if (!doctorId || !date) {
+      return res.status(400).json({ message: "doctorId and date required" });
+    }
+
+    // Normalize date
+    const normalizedDate = new Date(date).toISOString().split("T")[0];
+    const dayOfWeek = new Date(date)
+      .toLocaleDateString("en-US", { weekday: "short" })
+      .toLowerCase();
+
+    // 1️⃣ Try to get date-specific availability
+    let availability = await DoctorAvailability.findOne({
+      doctorId,
+      date: normalizedDate
+    });
+
+    // 2️⃣ If no date-specific, fallback to weekly
+    if (!availability) {
+      availability = await DoctorAvailability.findOne({
+        doctorId,
+        date: null,
+        day: dayOfWeek
+      });
+    }
+
+    if (!availability) {
+      return res.status(400).json({ message: "No availability found" });
+    }
+
+    const { startTime, endTime, slotDuration } = availability;
+
+    // Generate time slots
+    const slots = [];
+    let current = startTime.split(":").map(Number); // [hour, min]
+    const [endHour, endMin] = endTime.split(":").map(Number);
+
+    while (
+      current[0] < endHour ||
+      (current[0] === endHour && current[1] < endMin)
+    ) {
+      slots.push(`${String(current[0]).padStart(2, "0")}:${String(current[1]).padStart(2, "0")}`);
+      current[1] += slotDuration;
+      if (current[1] >= 60) {
+        current[0] += Math.floor(current[1] / 60);
+        current[1] = current[1] % 60;
+      }
+    }
+
+    // Exclude already booked slots
+    const bookedAppointments = await Appointment.find({
+      doctorId,
+      date: normalizedDate,
+      status: { $in: ["pending", "confirmed"] }
+    });
+
+    const bookedTimes = bookedAppointments.map(a => a.timeSlot.trim());
+
+    const availableSlots = slots.filter(s => !bookedTimes.includes(s));
+
+    res.json({ timeSlots: availableSlots });
+
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ message: err.message });
   }
 };

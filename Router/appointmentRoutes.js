@@ -4,7 +4,8 @@ import {
   confirmAppointment,
   cancelAppointment,
   getAllAppointments,
-  getMyAppointments
+  getMyAppointments,
+  getTimeSlots
 } from "../Controllers/appointmentController.js";
 
 import verifyToken from "../Middleware/verifyToken.js";
@@ -27,4 +28,5 @@ router.get("/all", verifyToken, authorizeRoles("user", "nurse", "admin", "doctor
 //  View my appointments
 router.get("/my", verifyToken, authorizeRoles("user"), getMyAppointments);
 
+router.get("/:doctorId/timeslots", getTimeSlots)
 export default router;
