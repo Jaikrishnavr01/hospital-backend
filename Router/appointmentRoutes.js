@@ -20,7 +20,7 @@ router.post("/book", verifyToken, authorizeRoles("user", "admin"), requestAppoin
 router.put("/confirm/:id", verifyToken, authorizeRoles("nurse", "doctor", "admin"), confirmAppointment);
 
 //  Cancel appointment
-router.put("/cancel/:id", verifyToken, authorizeRoles("user", "nurse", "admin"), cancelAppointment);
+router.put("/cancel/:id", verifyToken, authorizeRoles("user", "nurse", "admin", "doctor"), cancelAppointment);
 
 //  View all appointments
 router.get("/all", verifyToken, authorizeRoles("user", "nurse", "admin", "doctor"), getAllAppointments);

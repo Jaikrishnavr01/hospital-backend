@@ -3,8 +3,9 @@ import {
   addDoctorAvailability,
   getActiveAppointmentsByDoctor,
   getAllDoctors,
+  getDoctorAppointments,
   getDoctorAvailabilityCalendar,
-  getDoctorSlots, // ✅ already used (12-hr logic inside controller)
+  getDoctorSlots, 
   getUpcomingAppointmentsByDoctor,
   savePrescription,
   sendPrescriptionToPharmacy,
@@ -107,4 +108,11 @@ router.get(
   getAllDoctors
 );
 
+
+router.get(
+  "/doctor",
+  verifyToken,
+  authorizeRoles("doctor"),
+  getDoctorAppointments
+);
 export default router;

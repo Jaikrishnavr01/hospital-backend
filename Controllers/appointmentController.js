@@ -142,7 +142,7 @@ export const cancelAppointment = async (req, res) => {
       return res.status(403).json({ message: "Users can only cancel their own appointments" });
     }
 
-    if (!["user", "nurse", "admin"].includes(req.role)) {
+    if (!["user", "nurse", "admin", "doctor"].includes(req.role)) {
       return res.status(403).json({ message: "Access denied" });
     }
 

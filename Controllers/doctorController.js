@@ -505,5 +505,17 @@ export const getUpcomingAppointmentsByDoctor = async (req, res) => {
   }
 };
 
+export const getDoctorAppointments = async (req, res) => {
+  try {
+    const doctorId = req.userId;
 
+    const appointments = await Appointment.find({ doctorId })
+      .populate("userId", "name email phone")
+      .sort({ date: -1 });
+
+    res.json(appointments);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 
