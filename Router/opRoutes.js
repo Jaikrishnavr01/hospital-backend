@@ -9,7 +9,15 @@ const router = express.Router();
 router.post(
 "/register",
   verifyToken,
-  authorizeRoles("admin", "nurse"),
+  authorizeRoles("admin", "nurse", "doctor"),
+  registerOpAndGenerateBill
+);
+
+
+router.put(
+  "/register",
+  verifyToken,
+  authorizeRoles("admin", "nurse", "doctor"),
   registerOpAndGenerateBill
 );
 
@@ -22,21 +30,21 @@ router.get("/patient/me",
 router.post(
   "/bill/generate",
   verifyToken,
-  authorizeRoles("admin", "nurse"),
+  authorizeRoles("admin", "nurse", "doctor"),
   generateBill
 );
 
 router.post(
   "/bill/pay",
   verifyToken,
-  authorizeRoles("admin", "nurse"),
+  authorizeRoles("admin", "nurse", "doctor"),
   payBill
 );
 
 router.get(
   "/bills/:userId",
   verifyToken,
-  authorizeRoles("admin", "nurse", "user"),
+  authorizeRoles("admin", "nurse", "user", "doctor"),
   getBillsByUser
 );
 

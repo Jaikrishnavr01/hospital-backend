@@ -9,8 +9,7 @@ import Prescription from "../Model/Prescription.js";
  */
 export const getFullPatientHistory = async (req, res) => {
   try {
-    const userId = req.userId;
-
+ const userId = req.userId;
     // 1️⃣ Patient linked to logged-in user
     const patient = await Patient.findOne({ user: userId })
       .populate("user", "name email");
@@ -98,6 +97,41 @@ export const getFullPatientHistoryByPatientId = async (req, res) => {
 
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+export const getFullHistoryByAppointment = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+
+    const appointment = await Appointment.findById(appointmentId);
+
+    if (!appointment) {
+      return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    const patientId = appointment.patientId;
+
+    const visits = await Visit.find({ patientId })
+      .select("_id appointment patient doctor userId") // ✅ ONLY THESE
+      .sort({ createdAt: -1 });
+
+   // res.json(visits); 
+   
+    const result = visits.map(v => ({
+  _id: v._id,
+  appointment: v.appointment,
+  patient: v.patient,
+  doctor: v.doctor,
+  userId: appointment.userId, // ✅ from appointment
+}));
+
+res.json(result);
+
+  } catch (err) {
+    console.error("Error fetching history:", err);
     res.status(500).json({ error: err.message });
   }
 };

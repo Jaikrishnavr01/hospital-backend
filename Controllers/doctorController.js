@@ -311,17 +311,29 @@ export const getDoctorAvailabilityCalendar = async (req, res) => {
       doctorId: doctorObjectId
     });
 
-    // Separate weekly vs daily
-    const weeklyDays = availabilities
-      .filter(a => !a.date) // no specific date → weekly
-      .map(a => a.day.toLowerCase().slice(0, 3)); // ['mon', 'wed']
+    const weeklyMap = {}; // key: day, value: array of slots
+    const dailyMap = {};  // key: date, value: array of slots
 
-    const dailyDates = availabilities
-      .filter(a => a.date) // specific dates → daily
-      .map(a => {
+    availabilities.forEach(a => {
+      if (a.date) {
         const d = new Date(a.date);
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      });
+        const formattedDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        if (!dailyMap[formattedDate]) dailyMap[formattedDate] = [];
+        dailyMap[formattedDate].push({
+          startTime: a.startTime,
+          endTime: a.endTime,
+          slotDuration: a.slotDuration || 30
+        });
+      } else if (a.day) {
+        const dayKey = a.day.toLowerCase().slice(0, 3); // mon, tue, wed
+        if (!weeklyMap[dayKey]) weeklyMap[dayKey] = [];
+        weeklyMap[dayKey].push({
+          startTime: a.startTime,
+          endTime: a.endTime,
+          slotDuration: a.slotDuration || 30
+        });
+      }
+    });
 
     const availableDates = [];
     const unavailableDates = [];
@@ -330,18 +342,24 @@ export const getDoctorAvailabilityCalendar = async (req, res) => {
 
     for (let d = 1; d <= daysInMonth; d++) {
       const dateObj = new Date(year, month, d);
-
       const formattedDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      const dayName = dateObj
-        .toLocaleDateString("en-US", { weekday: "short" })
-        .toLowerCase()
-        .slice(0, 3); // mon, tue, wed...
+      const dayName = dateObj.toLocaleDateString("en-US", { weekday: "short" }).toLowerCase().slice(0, 3);
 
-      // ✅ Daily has higher priority
-      if (dailyDates.includes(formattedDate)) {
-        availableDates.push(formattedDate);
-      } else if (weeklyDays.includes(dayName)) {
-        availableDates.push(formattedDate);
+      let slotsForDate = [];
+
+      // ✅ Daily slots take priority
+      if (dailyMap[formattedDate]) {
+        slotsForDate = dailyMap[formattedDate];
+      } else if (weeklyMap[dayName]) {
+        slotsForDate = weeklyMap[dayName];
+      }
+
+      if (slotsForDate.length > 0) {
+        availableDates.push({
+          date: formattedDate,
+          day: dayName,
+          slots: slotsForDate
+        });
       } else {
         unavailableDates.push(formattedDate);
       }

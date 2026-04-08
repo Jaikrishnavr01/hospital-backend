@@ -28,7 +28,7 @@ const visitSchema = new mongoose.Schema({
 
   status: {
     type: String,
-    enum: ["OP_REGISTERED", "BILL_GENERATED", "PAID", "CONSULTED", "COMPLETED"],
+    enum: ["OP_REGISTERED", "BILL_GENERATED","UPDATED", "PAID", "CONSULTED", "COMPLETED"],
     default: "OP_REGISTERED"
   }
 }, { timestamps: true });

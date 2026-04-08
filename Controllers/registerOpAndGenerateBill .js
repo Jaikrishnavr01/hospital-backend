@@ -8,6 +8,154 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import Prescription from "../Model/Prescription.js";
 
+// export const registerOpAndGenerateBill = async (req, res) => {
+//   try {
+//     const {
+//       appointmentId,
+//       doctorId,
+//       userId,
+//       name,
+//       age,
+//       gender,
+//       phone,
+//       email,
+//       address,
+//       bloodGroup,
+//       emergencyContact,
+//       vitals
+//     } = req.body;
+
+//     let user;
+//     let isFirstVisit = false;
+
+//     /* ================= USER ================= */
+//     if (userId) {
+//       user = await User.findById(userId);
+//       if (!user) return res.status(404).json({ message: "User not found" });
+//     } else {
+//       user = await User.findOne({ email });
+//       if (!user) {
+//         const tempPassword = "password123";
+//         user = await User.create({
+//           name,
+//           email,
+//           password: await bcrypt.hash(tempPassword, 10),
+//           role: "user",
+//           isActivated: true
+//         });
+//       }
+//     }
+
+//     /* ================= PATIENT ================= */
+//     let patient = await Patient.findOne({
+//       user: user._id,
+//       name: name.trim()
+//     });
+
+//     if (patient) {
+//       // Update existing patient
+//       patient.age = age;
+//       patient.gender = gender;
+//       patient.phone = phone;
+//       patient.email = email;
+//       patient.address = address;
+//       patient.bloodGroup = bloodGroup;
+//       patient.emergencyContact = emergencyContact;
+//       patient.vitals = vitals;
+
+//       await patient.save();
+//     } else {
+//       // Create new patient
+//       patient = await Patient.create({
+//         user: user._id,
+//         name,
+//         age,
+//         gender,
+//         phone,
+//         email,
+//         address,
+//         bloodGroup,
+//         emergencyContact,
+//         vitals
+//       });
+//     }
+
+//     /* ================= FIRST VISIT ================= */
+//     const previousVisits = await Visit.countDocuments({
+//       patient: patient._id
+//     });
+//     isFirstVisit = previousVisits === 0;
+
+//     /* ================= APPOINTMENT ================= */
+//     let appointment;
+//     if (mongoose.Types.ObjectId.isValid(appointmentId)) {
+//       appointment = await Appointment.findById(appointmentId);
+//     } else {
+//       appointment = await Appointment.findOne({ code: appointmentId });
+//     }
+
+//     if (!appointment) {
+//       return res.status(404).json({ message: `Appointment ${appointmentId} not found` });
+//     }
+
+//     /* ================= DOCTOR ================= */
+//     let doctor;
+//     if (mongoose.Types.ObjectId.isValid(doctorId)) {
+//       doctor = await User.findById(doctorId);
+//     } else {
+//       doctor = await User.findOne({ customId: doctorId, role: "doctor" });
+//     }
+
+//     if (!doctor) {
+//       return res.status(404).json({ message: `Doctor ${doctorId} not found` });
+//     }
+
+//     /* ================= VISIT ================= */
+//     const visit = await Visit.create({
+//       appointment: appointment._id,
+//       doctor: doctor._id,
+//       patient: patient._id,
+//       vitals,
+//       status: "OP_REGISTERED"
+//     });
+
+//     /* ================= BILL ================= */
+//     const items = [];
+//     if (isFirstVisit) {
+//       items.push({ name: "OP Registration", amount: 100 });
+//     }
+//     items.push({ name: "Doctor Consultation", amount: 300 });
+
+//     const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
+
+//     const bill = await Bill.create({
+//       visit: visit._id,
+//       items,
+//       totalAmount,
+//       status: "PENDING"
+//     });
+
+//     visit.status = "BILL_GENERATED";
+//     await visit.save();
+
+//     /* ================= RESPONSE ================= */
+//     res.status(201).json({
+//       message: "OP registered & bill generated",
+//       firstVisit: isFirstVisit,
+//       userId: user._id,
+//       patientId: patient._id,
+//       visitId: visit._id,
+//       billId: bill._id,
+//       totalAmount
+//     });
+
+//   } catch (err) {
+//     console.error("REGISTER OP ERROR:", err);
+//     res.status(500).json({ error: err.message });
+//   }
+// };
+
+
 export const registerOpAndGenerateBill = async (req, res) => {
   try {
     const {
@@ -26,7 +174,6 @@ export const registerOpAndGenerateBill = async (req, res) => {
     } = req.body;
 
     let user;
-    let isFirstVisit = false;
 
     /* ================= USER ================= */
     if (userId) {
@@ -35,11 +182,10 @@ export const registerOpAndGenerateBill = async (req, res) => {
     } else {
       user = await User.findOne({ email });
       if (!user) {
-        const tempPassword = "password123";
         user = await User.create({
           name,
           email,
-          password: await bcrypt.hash(tempPassword, 10),
+          password: await bcrypt.hash("password123", 10),
           role: "user",
           isActivated: true
         });
@@ -53,7 +199,7 @@ export const registerOpAndGenerateBill = async (req, res) => {
     });
 
     if (patient) {
-      // Update existing patient
+      // update patient details
       patient.age = age;
       patient.gender = gender;
       patient.phone = phone;
@@ -65,7 +211,7 @@ export const registerOpAndGenerateBill = async (req, res) => {
 
       await patient.save();
     } else {
-      // Create new patient
+      // create new patient
       patient = await Patient.create({
         user: user._id,
         name,
@@ -80,38 +226,49 @@ export const registerOpAndGenerateBill = async (req, res) => {
       });
     }
 
-    /* ================= FIRST VISIT ================= */
-    const previousVisits = await Visit.countDocuments({
-      patient: patient._id
-    });
-    isFirstVisit = previousVisits === 0;
-
     /* ================= APPOINTMENT ================= */
-    let appointment;
-    if (mongoose.Types.ObjectId.isValid(appointmentId)) {
-      appointment = await Appointment.findById(appointmentId);
-    } else {
-      appointment = await Appointment.findOne({ code: appointmentId });
-    }
+    const appointment = mongoose.Types.ObjectId.isValid(appointmentId)
+      ? await Appointment.findById(appointmentId)
+      : await Appointment.findOne({ code: appointmentId });
 
     if (!appointment) {
-      return res.status(404).json({ message: `Appointment ${appointmentId} not found` });
+      return res.status(404).json({ message: "Appointment not found" });
     }
 
     /* ================= DOCTOR ================= */
-    let doctor;
-    if (mongoose.Types.ObjectId.isValid(doctorId)) {
-      doctor = await User.findById(doctorId);
-    } else {
-      doctor = await User.findOne({ customId: doctorId, role: "doctor" });
-    }
+    const doctor = mongoose.Types.ObjectId.isValid(doctorId)
+      ? await User.findById(doctorId)
+      : await User.findOne({ customId: doctorId, role: "doctor" });
 
     if (!doctor) {
-      return res.status(404).json({ message: `Doctor ${doctorId} not found` });
+      return res.status(404).json({ message: "Doctor not found" });
     }
 
-    /* ================= VISIT ================= */
-    const visit = await Visit.create({
+    /* ================= 1️⃣ CHECK SAME VISIT (UPDATE) ================= */
+    let visit = await Visit.findOne({
+      appointment: appointment._id,
+      patient: patient._id
+    });
+
+    if (visit) {
+      // 🔴 UPDATE → NO BILL
+      visit.vitals = vitals;
+      visit.status = "UPDATED"; // ensure enum allows this
+      await visit.save();
+
+      return res.status(200).json({
+        message: "Visit updated (no extra charge)",
+        visitId: visit._id
+      });
+    }
+
+    /* ================= 2️⃣ CHECK EXISTING PATIENT ================= */
+    const hasPreviousVisit = await Visit.exists({
+      patient: patient._id
+    });
+
+    /* ================= 3️⃣ CREATE NEW VISIT ================= */
+    visit = await Visit.create({
       appointment: appointment._id,
       doctor: doctor._id,
       patient: patient._id,
@@ -119,11 +276,28 @@ export const registerOpAndGenerateBill = async (req, res) => {
       status: "OP_REGISTERED"
     });
 
-    /* ================= BILL ================= */
+    /* ================= 4️⃣ BILL ================= */
+
+    // prevent duplicate bill
+    const existingBill = await Bill.findOne({ visit: visit._id });
+
+    if (existingBill) {
+      return res.status(200).json({
+        message: "No new bill (already exists)",
+        billId: existingBill._id,
+        totalAmount: existingBill.totalAmount,
+        visitId: visit._id
+      });
+    }
+
     const items = [];
-    if (isFirstVisit) {
+
+    // 🆕 First visit → add registration
+    if (!hasPreviousVisit) {
       items.push({ name: "OP Registration", amount: 100 });
     }
+
+    // 🔁 Always consultation
     items.push({ name: "Doctor Consultation", amount: 300 });
 
     const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
@@ -139,9 +313,9 @@ export const registerOpAndGenerateBill = async (req, res) => {
     await visit.save();
 
     /* ================= RESPONSE ================= */
-    res.status(201).json({
+    return res.status(200).json({
       message: "OP registered & bill generated",
-      firstVisit: isFirstVisit,
+      isFirstVisit: !hasPreviousVisit,
       userId: user._id,
       patientId: patient._id,
       visitId: visit._id,
@@ -156,25 +330,25 @@ export const registerOpAndGenerateBill = async (req, res) => {
 };
 
 
-// export const getPatientByUserId = async (req, res) => {
-//   try {
-//     const patient = await Patient.findOne({ user: req.user.id });
+export const getPatientByUserId = async (req, res) => {
+  try {
+    const patient = await Patient.findOne({ user: req.user.id });
 
-//     if (!patient) {
-//       return res.status(404).json({
-//         message: "Patient profile not created yet"
-//       });
-//     }
+    if (!patient) {
+      return res.status(404).json({
+        message: "Patient profile not created yet"
+      });
+    }
 
-//     return res.status(200).json({
-//       patientId: patient._id,
-//       patient
-//     });
-//   } catch (error) {
-//     console.error("GET PATIENT ERROR:", error);
-//     return res.status(500).json({ message: "Server error" });
-//   }
-// };
+    return res.status(200).json({
+      patientId: patient._id,
+      patient
+    });
+  } catch (error) {
+    console.error("GET PATIENT ERROR:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
 
 
 /**

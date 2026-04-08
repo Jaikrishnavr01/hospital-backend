@@ -19,7 +19,7 @@ const allowOnlyPaidVisit = async (req, res, next) => {
     }
 
     // ✅ Allow only PAID or CONSULTED visits
-    if (!["PAID", "CONSULTED"].includes(visit.status)) {
+    if (!["PAID", "CONSULTED", "UPDATED"].includes(visit.status)) {
       return res.status(403).json({
         message: "Billing not completed. Doctor access denied."
       });
