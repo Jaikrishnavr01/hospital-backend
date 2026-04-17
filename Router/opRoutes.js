@@ -2,7 +2,7 @@ import express from "express";
 import verifyToken from "../Middleware/verifyToken.js";
 import authorizeRoles from "../Middleware/roles.js";
 import { getPatientIdsByUserId, registerOpAndGenerateBill } from "../Controllers/registerOpAndGenerateBill .js";
-import { generateBill, getBillsByUser, payBill } from "../Controllers/billingContoller.js";
+import { generateBill, getAllBills, getBillsByUser, getPendingBills, payBill } from "../Controllers/billingContoller.js";
 
 const router = express.Router();
 
@@ -41,11 +41,48 @@ router.post(
   payBill
 );
 
+/* ================================
+   ✅ ADMIN / NURSE
+================================ */
+
+// All bills
 router.get(
-  "/bills/:userId",
+  "/all",
   verifyToken,
-  authorizeRoles("admin", "nurse", "user", "doctor"),
+  authorizeRoles("admin", "nurse"),
+  getAllBills
+);
+
+// Pending bills
+router.get(
+  "/pending",
+  verifyToken,
+  authorizeRoles("admin", "nurse"),
+  getPendingBills
+);
+
+/* ================================
+   ✅ USER - OWN BILLS ONLY
+================================ */
+
+router.get(
+  "/my",
+  verifyToken,
+  authorizeRoles("user"),
   getBillsByUser
 );
+
+/* ================================
+   ✅ ADMIN / NURSE / DOCTOR - ANY USER
+================================ */
+
+router.get(
+  "/user/:userId",
+  verifyToken,
+  authorizeRoles("admin", "nurse", "doctor"),
+  getBillsByUser
+);
+
+
 
 export default router;

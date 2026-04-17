@@ -5,7 +5,8 @@ import {
   cancelAppointment,
   getAllAppointments,
   getMyAppointments,
-  getTimeSlots
+  getTimeSlots,
+  getAppointmentById
 } from "../Controllers/appointmentController.js";
 
 import verifyToken from "../Middleware/verifyToken.js";
@@ -26,7 +27,10 @@ router.put("/cancel/:id", verifyToken, authorizeRoles("user", "nurse", "admin", 
 router.get("/all", verifyToken, authorizeRoles("user", "nurse", "admin", "doctor"), getAllAppointments);
 
 //  View my appointments
-router.get("/my", verifyToken, authorizeRoles("user"), getMyAppointments);
+router.get("/my", verifyToken, authorizeRoles("user", "nurse"), getMyAppointments);
 
 router.get("/:doctorId/timeslots", getTimeSlots)
+
+router.get("/appoint/:id", getAppointmentById);
+
 export default router;

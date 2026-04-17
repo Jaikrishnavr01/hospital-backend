@@ -184,7 +184,7 @@ export const getAllAppointments = async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
 
     const appointments = await Appointment.find()
-      .populate("userId", "name email")
+      .populate("userId", "name email phone")
       .populate("doctorId", "name email")
       .sort({ date: 1, timeSlot: 1 });
 
@@ -265,5 +265,35 @@ export const getTimeSlots = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: err.message });
+  }
+};
+
+
+export const getAppointmentById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const appointment = await Appointment.findById(id)
+      .populate("doctorId", "name _id")   // ✅ fetch doctor name
+      .populate("userId", "name _id");
+
+    if (!appointment) {
+      return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    res.json({
+      _id: appointment._id,
+      doctor: {
+        _id: appointment.doctorId._id,
+        name: appointment.doctorId.name,   // ✅ doctor name sent here
+      },
+      user: {
+        _id: appointment.userId._id,
+        name: appointment.userId.name,
+      },
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };

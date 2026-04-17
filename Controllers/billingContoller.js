@@ -1,88 +1,174 @@
 import Bill from "../Model/Bill.js";
 import Visit from "../Model/Visit.js";
-import User from "../Model/UserModel.js";      // ✅ add this
-import Patient from "../Model/Patient.js";     // ✅ add this
+import User from "../Model/UserModel.js";
+import Patient from "../Model/Patient.js";
 
+// ✅ IMPORTANT: Force model registration (FIXES "Doctor not registered" error)
+import "../Model/DoctorAvailability.js";
+import "../Model/Appointment.js";
+
+/* ================================
+   ✅ GENERATE BILL
+================================ */
 export const generateBill = async (req, res) => {
   try {
     const { visitId } = req.body;
 
+    if (!visitId) {
+      return res.status(400).json({ message: "visitId is required" });
+    }
+
+    // Get visit with relations
+    const visit = await Visit.findById(visitId)
+      .populate({
+        path: "patient",
+        populate: { path: "user" },
+      })
+      .populate("appointment");
+
+    if (!visit) {
+      return res.status(404).json({ message: "Visit not found" });
+    }
+
+    const userId = visit.patient?.user?._id || visit.patient?.user || null;
+    const doctorId = visit.appointment?.doctorId || null;
+    const appointmentId = visit.appointment?._id || null;
+
+    // Prevent duplicate bill
+    const existing = await Bill.findOne({ visit: visitId });
+    if (existing) {
+      return res.status(400).json({ message: "Bill already exists" });
+    }
+
     const bill = await Bill.create({
       visit: visitId,
+      appointmentId,
+      userId,
+      doctorId,
       items: [
         { name: "OP Registration", amount: 100 },
-        { name: "Doctor Consultation", amount: 300 }
+        { name: "Doctor Consultation", amount: 300 },
       ],
-      totalAmount: 400
+      totalAmount: 400,
+      status: "PENDING",
     });
 
-    await Visit.findByIdAndUpdate(visitId, { status: "BILL_GENERATED" });
+    await Visit.findByIdAndUpdate(visitId, {
+      status: "BILL_GENERATED",
+    });
 
-    res.json({ message: "Bill Generated", billId: bill._id });
+    res.status(201).json({
+      message: "Bill Generated Successfully",
+      bill,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
+/* ================================
+   ✅ PAY BILL
+================================ */
 export const payBill = async (req, res) => {
   try {
     const { billId, paymentMode } = req.body;
 
-    const bill = await Bill.findByIdAndUpdate(
-      billId,
-      { status: "PAID", paymentMode },
-      { new: true }
-    );
+    if (!billId || !paymentMode) {
+      return res.status(400).json({ message: "billId & paymentMode required" });
+    }
 
-    await Visit.findByIdAndUpdate(bill.visit, { status: "PAID" });
+    const bill = await Bill.findById(billId);
 
-    res.json({ message: "Payment Successful" });
+    if (!bill) {
+      return res.status(404).json({ message: "Bill not found" });
+    }
+
+    bill.status = "PAID";
+    bill.paymentMode = paymentMode;
+
+    await bill.save();
+
+    if (bill.visit) {
+      await Visit.findByIdAndUpdate(bill.visit, {
+        status: "PAID",
+      });
+    }
+
+    res.json({
+      message: "Payment Successful",
+      bill,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-/**
- * Get all bills for a user
- * Route: GET /api/op/bills/:userId
- * Roles: admin, nurse, user (user can see only their own bills)
- */
+/* ================================
+   ✅ GET ALL BILLS
+================================ */
+export const getAllBills = async (req, res) => {
+  try {
+    const bills = await Bill.find({})
+      .populate("userId", "name email")
+      .populate("doctorId", "name email")
+      .populate("appointmentId", "date timeSlot");
+
+    // console.log("TOTAL BILLS:", bills.length);
+
+    res.json({
+      message: "All bills fetched successfully",
+      count: bills.length,
+      bills,
+    });
+  } catch (err) {
+    console.error("GET ALL BILLS ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/* ================================
+   ✅ GET PENDING BILLS
+================================ */
+export const getPendingBills = async (req, res) => {
+  try {
+    const bills = await Bill.find({ status: "PENDING" })
+      .populate("userId", "name email")
+      .populate("doctorId", "name email")
+      .populate("appointmentId", "date timeSlot")
+      .populate("visit");
+
+    res.json({
+      message: "Pending bills fetched successfully",
+      bills,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/* ================================
+   ✅ GET BILLS BY USER
+================================ */
 export const getBillsByUser = async (req, res) => {
   try {
-    const { userId } = req.params;
+    let userId;
 
-    // 1️⃣ Check user exists
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+    if (req.user.role === "user") {
+      userId = req.user.id;
+    } else {
+      userId = req.params.userId;
     }
 
-    // 2️⃣ Get or create patient record
-    let patient = await Patient.findOne({ user: user._id });
+    const bills = await Bill.find({ userId })
+      .populate("doctorId", "name email")
+      .populate("appointmentId", "date timeSlot")
+      .populate("visit");
 
-    if (!patient) {
-      patient = await Patient.create({
-        user: user._id,
-        name: user.name,
-        email: user.email
-      });
-    }
-
-    // 3️⃣ Get all visits for patient
-    const visits = await Visit.find({ patient: patient._id });
-    const visitIds = visits.map(v => v._id);
-
-    // 4️⃣ Get bills
-    const bills = await Bill.find({ visit: { $in: visitIds } })
-      .populate({
-        path: "visit",
-        select: "appointment doctor status"
-      });
-
-    res.json({ bills });
-
+    res.json({
+      message: "Bills fetched successfully",
+      bills,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-

@@ -2,6 +2,7 @@ import Patient from "../Model/Patient.js";
 import Visit from "../Model/Visit.js";
 import Appointment from "../Model/Appointment.js";
 import Prescription from "../Model/Prescription.js";
+import DoctorAvailability from "../Model/DoctorAvailability.js";
 
 /**
  * USER → OWN FULL PATIENT HISTORY

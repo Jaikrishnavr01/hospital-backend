@@ -199,7 +199,6 @@ export const registerOpAndGenerateBill = async (req, res) => {
     });
 
     if (patient) {
-      // update patient details
       patient.age = age;
       patient.gender = gender;
       patient.phone = phone;
@@ -208,10 +207,8 @@ export const registerOpAndGenerateBill = async (req, res) => {
       patient.bloodGroup = bloodGroup;
       patient.emergencyContact = emergencyContact;
       patient.vitals = vitals;
-
       await patient.save();
     } else {
-      // create new patient
       patient = await Patient.create({
         user: user._id,
         name,
@@ -227,33 +224,25 @@ export const registerOpAndGenerateBill = async (req, res) => {
     }
 
     /* ================= APPOINTMENT ================= */
-    const appointment = mongoose.Types.ObjectId.isValid(appointmentId)
-      ? await Appointment.findById(appointmentId)
-      : await Appointment.findOne({ code: appointmentId });
-
+    const appointment = await Appointment.findById(appointmentId);
     if (!appointment) {
       return res.status(404).json({ message: "Appointment not found" });
     }
 
     /* ================= DOCTOR ================= */
-    const doctor = mongoose.Types.ObjectId.isValid(doctorId)
-      ? await User.findById(doctorId)
-      : await User.findOne({ customId: doctorId, role: "doctor" });
-
+    const doctor = await User.findById(doctorId);
     if (!doctor) {
       return res.status(404).json({ message: "Doctor not found" });
     }
 
-    /* ================= 1️⃣ CHECK SAME VISIT (UPDATE) ================= */
+    /* ================= CHECK EXISTING VISIT ================= */
     let visit = await Visit.findOne({
       appointment: appointment._id,
       patient: patient._id
     });
 
     if (visit) {
-      // 🔴 UPDATE → NO BILL
       visit.vitals = vitals;
-      visit.status = "UPDATED"; // ensure enum allows this
       await visit.save();
 
       return res.status(200).json({
@@ -262,12 +251,12 @@ export const registerOpAndGenerateBill = async (req, res) => {
       });
     }
 
-    /* ================= 2️⃣ CHECK EXISTING PATIENT ================= */
+    /* ================= CHECK FIRST VISIT ================= */
     const hasPreviousVisit = await Visit.exists({
       patient: patient._id
     });
 
-    /* ================= 3️⃣ CREATE NEW VISIT ================= */
+    /* ================= CREATE VISIT ================= */
     visit = await Visit.create({
       appointment: appointment._id,
       doctor: doctor._id,
@@ -276,39 +265,40 @@ export const registerOpAndGenerateBill = async (req, res) => {
       status: "OP_REGISTERED"
     });
 
-    /* ================= 4️⃣ BILL ================= */
-
-    // prevent duplicate bill
+    /* ================= PREVENT DUPLICATE BILL ================= */
     const existingBill = await Bill.findOne({ visit: visit._id });
 
     if (existingBill) {
       return res.status(200).json({
-        message: "No new bill (already exists)",
+        message: "Bill already exists",
         billId: existingBill._id,
-        totalAmount: existingBill.totalAmount,
         visitId: visit._id
       });
     }
 
+    /* ================= BILL ITEMS ================= */
     const items = [];
 
-    // 🆕 First visit → add registration
     if (!hasPreviousVisit) {
       items.push({ name: "OP Registration", amount: 100 });
     }
 
-    // 🔁 Always consultation
     items.push({ name: "Doctor Consultation", amount: 300 });
 
     const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
 
+    /* ================= CREATE BILL ================= */
     const bill = await Bill.create({
       visit: visit._id,
+      appointmentId: appointment._id,
+      userId: user._id,
+      doctorId: doctor._id,
       items,
       totalAmount,
       status: "PENDING"
     });
 
+    /* ================= UPDATE VISIT STATUS ================= */
     visit.status = "BILL_GENERATED";
     await visit.save();
 
@@ -320,7 +310,8 @@ export const registerOpAndGenerateBill = async (req, res) => {
       patientId: patient._id,
       visitId: visit._id,
       billId: bill._id,
-      totalAmount
+      totalAmount,
+      status: "BILL_GENERATED" // ✅ IMPORTANT for frontend
     });
 
   } catch (err) {
