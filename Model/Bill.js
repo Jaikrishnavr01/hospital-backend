@@ -18,6 +18,11 @@ const billSchema = new mongoose.Schema(
       ref: "User",
     },
 
+       prescriptionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Prescription",
+    },
+
     doctorId: {
        type: mongoose.Schema.Types.ObjectId,
        ref: "User",

@@ -109,9 +109,10 @@ export const payBill = async (req, res) => {
 export const getAllBills = async (req, res) => {
   try {
     const bills = await Bill.find({})
-      .populate("userId", "name email")
-      .populate("doctorId", "name email")
-      .populate("appointmentId", "date timeSlot");
+      .populate("userId", "name email phone")
+      .populate("doctorId", "name email department")
+      .populate("appointmentId", "date timeSlot status")
+      .populate("visit",  "vitals");
 
     // console.log("TOTAL BILLS:", bills.length);
 
@@ -133,7 +134,7 @@ export const getPendingBills = async (req, res) => {
   try {
     const bills = await Bill.find({ status: "PENDING" })
       .populate("userId", "name email")
-      .populate("doctorId", "name email")
+      .populate("doctorId", "name email department")
       .populate("appointmentId", "date timeSlot")
       .populate("visit");
 
