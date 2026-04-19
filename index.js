@@ -1,20 +1,19 @@
 import express from "express";
 import dotenv from "dotenv";
-import cors from "cors";
-import path from "path";
 
-import connectDB from "./Config/db.js";
-
+import connectDB from './Config/db.js'
 import userRoutes from "./Router/User.js";
+
 import Dashboard from "./Router/Dashboard.js";
 import appointmentRoutes from "./Router/appointmentRoutes.js";
-import opRouters from "./Router/opRoutes.js";
-import patientRoutes from "./Router/patientRoutes.js";
-import pharmacy from "./Router/pharmacy.js";
+import opRouters from "./Router/opRoutes.js"
+import patientRoutes from "./Router/patientRoutes.js"
+import pharmacy from "./Router/pharmacy.js"
 import hospitalRoute from "./Router/hospitalRoutes.js";
 import doctorRoutes from "./Router/doctorRoutes.js";
-
 import "./cron/expireAppointment.js";
+import cors from "cors"
+import path from "path";
 import "./cron/index.js";
 
 dotenv.config();
@@ -47,15 +46,15 @@ app.options("*", cors({
 
 app.use(express.json());
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
-
 app.use("/auth", userRoutes);
-app.use("/", Dashboard);
+
+app.use("/", Dashboard)
 app.use("/api/hospital", hospitalRoute);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/patients", patientRoutes);
 app.use("/api/doctors", doctorRoutes);
-app.use("/api/p", pharmacy);
-app.use("/api/op", opRouters);
+app.use("/api/p", pharmacy)
+app.use("/api/op",opRouters )
 
 app.get("/", (req, res) => {
   res.json({ message: "hospital booking site is working prefect" });
