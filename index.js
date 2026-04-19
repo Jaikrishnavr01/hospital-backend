@@ -21,14 +21,19 @@ connectDB();
 
 const app = express();
 
+// --- 1. STRICT CORS CONFIGURATION ---
 const corsOptions = {
-  // Replace with your exact frontend URL (no trailing slash)
-  origin: 'http://localhost:5173/login', 
-  credentials: true,
+  // Allow exact frontend URLs (NO trailing slashes)
+  origin: [
+    'http://localhost:5173', 
+    'http://127.0.0.1:5173'
+  ], 
+  credentials: true, // Required for cookies/sessions
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 
 app.use(cors(corsOptions));
-
 
 app.use(express.json());
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
