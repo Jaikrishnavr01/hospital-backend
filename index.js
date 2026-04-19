@@ -21,12 +21,15 @@ connectDB();
 
 const app = express();
 
-app.use(
-  cors({
-    origin: "http://localhost:5173",
-    credentials: false,
-  })
-);
+const corsOptions = {
+  // Replace with your exact frontend URL (no trailing slash)
+  origin: 'http://localhost:5173', 
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
+
+
 app.use(express.json());
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use("/auth", userRoutes);
