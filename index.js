@@ -23,7 +23,7 @@ const app = express();
 
 const corsOptions = {
   // Replace with your exact frontend URL (no trailing slash)
-  origin: 'http://localhost:5173', 
+  origin: 'http://localhost:5173/login', 
   credentials: true,
 };
 
