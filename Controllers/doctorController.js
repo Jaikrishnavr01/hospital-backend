@@ -5,7 +5,7 @@ import Prescription from "../Model/Prescription.js";
 import UserModel from "../Model/UserModel.js";
 import Medicine from "../Model/Medicine.js";
 import mongoose from "mongoose";
-import { to12Hour } from "../Utils/timeFormatter.js";
+import { to12Hour } from "../utils/timeFormatter.js";
 
 
 export const getDoctorSlots = async (req, res) => {
