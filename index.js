@@ -21,29 +21,12 @@ connectDB();
 
 const app = express();
 
-const allowedOrigins = [
-  "http://localhost:5173",
-  // "https://your-frontend-domain.com"
-];
-
 app.use(
   cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("CORS blocked"));
-      }
-    },
-    credentials: true,
+    origin: "http://localhost:5173",
+    credentials: false,
   })
 );
-
-app.options("*", cors({
-  origin: allowedOrigins,
-  credentials: true,
-}));
-
 app.use(express.json());
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use("/auth", userRoutes);
