@@ -96,7 +96,7 @@ export const Signup = async (req, res) => {
     });
 
 
-    const activationLink = `http://localhost:${process.env.PORT}/auth/activate/${activationCode}`;
+    const activationLink = `https://hospital-backend-ypu1.vercel.app/auth/activate/${activationCode}`;
 
     const mailOptions = {
       from: process.env.EMAIL_USER,
