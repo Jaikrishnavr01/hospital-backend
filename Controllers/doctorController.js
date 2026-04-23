@@ -157,7 +157,7 @@ export const setDoctorDepartmentAndRegnum = async (req, res) => {
 
 export const getAllDoctors = async (req, res) => {
   try {
-    const doctors = await UserModel.find({ role: "doctor" }).select("name email department , registrationNumber signature");
+    const doctors = await UserModel.find({ role: "doctor" }).select("name email department registrationNumber signature");
 
     res.json({
       count: doctors.length,
