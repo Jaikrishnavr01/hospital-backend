@@ -21,12 +21,31 @@ connectDB();
 
 const app = express();
 
-app.use(
-  cors({
-    origin: "http://localhost:5173" || "https://hospital-frontend-ecru-ten.vercel.app",
-    credentials: true,
-  })
-);
+app.use((req, res, next) => {
+  const allowedOrigins = [
+    "http://localhost:5173",
+    "https://hospital-frontend-ecru-ten.vercel.app"
+  ];
+
+  const origin = req.headers.origin;
+
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
+
+  // 🔥 handle preflight directly
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
+
+
 app.use(express.json());
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use("/auth", userRoutes);
